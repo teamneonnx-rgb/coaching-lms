@@ -4,6 +4,7 @@ import { AuthError } from "next-auth";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { signIn, signOut } from "@/auth";
+import { sendWelcomeEmail } from "@/lib/notifications/events";
 import { loginSchema, registerSchema } from "@/lib/validations/auth";
 
 export type ActionState = { error?: string; fieldErrors?: Record<string, string[]> };
@@ -62,6 +63,8 @@ export async function registerAction(values: unknown): Promise<ActionState> {
       parentEmail: data.parentEmail || null,
     },
   });
+
+  await sendWelcomeEmail(email, data.name); // FR-NOT welcome
 
   try {
     await signIn("credentials", {

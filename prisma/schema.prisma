@@ -164,6 +164,10 @@ model Attendance {
   batchId  String?
   batch    Batch?           @relation(fields: [batchId], references: [id])
   markedAt DateTime         @default(now())
+  // Validation workflow (FR-ATT-4/5): student self-marks stay pending until a
+  // teacher validates. validatedById = the validating teacher; null = pending.
+  validatedById String?
+  validatedAt   DateTime?
 
   // FR-ATT-01: prevents duplicate attendance entries
   @@unique([userId, date, batchId])

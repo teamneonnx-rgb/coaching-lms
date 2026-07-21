@@ -57,7 +57,7 @@ export function NotificationBell() {
   // Client-side polling (SRD Phase 6) — every 20s, on focus, and in background
   // tabs too (a notification bell should keep counting while backgrounded).
   const { data, mutate } = useSWR<Payload>(
-    "/api/admin/notifications?limit=20",
+    "/api/notifications?limit=20",
     fetcher,
     { refreshInterval: 20000, refreshWhenHidden: true, revalidateOnFocus: true }
   );

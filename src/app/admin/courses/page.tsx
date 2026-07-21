@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +74,11 @@ export default async function AdminCoursesPage() {
                 <TableBody>
                   {courses.map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell className="font-medium text-slate-900">{c.title}</TableCell>
+                      <TableCell className="font-medium text-slate-900">
+                        <Link href={`/admin/courses/${c.id}`} className="hover:text-blue-600 hover:underline">
+                          {c.title}
+                        </Link>
+                      </TableCell>
                       <TableCell className="text-slate-600">{c.batch.name}</TableCell>
                       <TableCell className="text-slate-600">{c.teacher.name}</TableCell>
                       <TableCell className="text-slate-600">{c._count.chapters}</TableCell>

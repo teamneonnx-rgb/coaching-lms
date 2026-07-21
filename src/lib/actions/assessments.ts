@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/session";
 import { getSignedResourceUrl } from "@/lib/storage";
+import { notifyBatchStudents, notifyUser } from "@/lib/notifications/events";
 import {
   assessmentSchema,
   gradeSubmissionSchema,
@@ -111,7 +112,7 @@ export async function publishAssessment(
 
   const assessment = await db.assessment.findFirst({
     where: { id, teacherId: teacher.id },
-    select: { type: true, _count: { select: { questions: true } } },
+    select: { type: true, title: true, courseId: true, isPublished: true, _count: { select: { questions: true } } },
   });
   if (!assessment) return { ok: false, error: "Assessment not found" };
 
@@ -120,6 +121,15 @@ export async function publishAssessment(
   }
 
   await db.assessment.update({ where: { id }, data: { isPublished: publish } });
+
+  // FR-NOT: on first publish, notify batch students the test is available.
+  if (publish && !assessment.isPublished) {
+    await notifyBatchStudents(assessment.courseId, {
+      title: "New test available",
+      message: `A new ${assessment.type.toLowerCase()} test "${assessment.title}" has been published.`,
+    });
+  }
+
   revalidatePath("/teacher/assessments");
   return { ok: true, info: publish ? "Published" : "Unpublished" };
 }
@@ -147,7 +157,7 @@ export async function gradeSubmission(values: unknown): Promise<ActionResult> {
   // Verify the submission belongs to one of the teacher's assessments.
   const submission = await db.submission.findFirst({
     where: { id: submissionId, assessment: { teacherId: teacher.id } },
-    select: { id: true, assessmentId: true },
+    select: { id: true, studentId: true, assessment: { select: { title: true } } },
   });
   if (!submission) return { ok: false, error: "Submission not found" };
 
@@ -160,6 +170,12 @@ export async function gradeSubmission(values: unknown): Promise<ActionResult> {
       gradedById: teacher.id,
       gradedAt: new Date(),
     },
+  });
+
+  // FR-NOT: notify the student their submission was graded.
+  await notifyUser(submission.studentId, {
+    title: "Test graded",
+    message: `Your submission for "${submission.assessment.title}" has been graded (${score} marks).`,
   });
 
   revalidatePath("/teacher/assessments");

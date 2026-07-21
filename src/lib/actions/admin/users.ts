@@ -5,6 +5,7 @@ import { Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { assertAdmin } from "@/lib/actions/admin/guard";
+import { sendWelcomeEmail } from "@/lib/notifications/events";
 import {
   adminCreateUserSchema,
   adminUpdateUserSchema,
@@ -39,6 +40,8 @@ export async function createUser(values: unknown): Promise<ActionResult> {
       parentEmail: data.parentEmail || null,
     },
   });
+
+  await sendWelcomeEmail(email, data.name); // FR-NOT welcome / credentials
 
   revalidatePath("/admin/users");
   revalidatePath("/admin");

@@ -7,6 +7,8 @@ import {
   LayoutDashboard,
   CalendarCheck,
   ClipboardList,
+  BookOpen,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -16,6 +18,8 @@ type NavItem = { href: string; label: string; icon: LucideIcon };
 
 const NAV: NavItem[] = [
   { href: "/teacher", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/teacher/batches", label: "Batches", icon: Layers },
+  { href: "/teacher/content", label: "Content", icon: BookOpen },
   { href: "/teacher/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/teacher/assessments", label: "Assessments", icon: ClipboardList },
 ];

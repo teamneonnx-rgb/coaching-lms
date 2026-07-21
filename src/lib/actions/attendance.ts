@@ -27,7 +27,8 @@ export async function markMyAttendance(values: unknown): Promise<ActionResult> {
   const { status } = parsed.data;
   const date = todayDateOnly();
 
-  // ── STUDENT: self-attendance → parent alert ──
+  // ── STUDENT: self-mark → PENDING teacher validation (FR-ATT-4) ──
+  // No parent alert / admin notify yet; those fire when the teacher validates.
   if (user.role === "STUDENT") {
     const batch = await getActiveBatch(user.id);
     if (!batch) return { ok: false, error: "You are not enrolled in an active batch" };
@@ -37,26 +38,24 @@ export async function markMyAttendance(values: unknown): Promise<ActionResult> {
     });
 
     if (existing) {
-      if (existing.status === status) {
-        return { ok: true, info: "Attendance already marked for today" };
+      if (existing.validatedById) {
+        return { ok: false, error: "Today's attendance is already validated by your teacher" };
       }
-      const updated = await db.attendance.update({
+      await db.attendance.update({
         where: { id: existing.id },
         data: { status, markedAt: new Date() },
       });
-      await dispatchAttendanceAlert(updated.id); // step 3a
       revalidatePath("/student");
       revalidatePath("/student/attendance");
-      return { ok: true, info: "Attendance updated" };
+      return { ok: true, info: "Updated — awaiting teacher validation" };
     }
 
-    const created = await db.attendance.create({
-      data: { userId: user.id, batchId: batch.id, date, status },
+    await db.attendance.create({
+      data: { userId: user.id, batchId: batch.id, date, status }, // validatedById stays null
     });
-    await dispatchAttendanceAlert(created.id); // step 3a
     revalidatePath("/student");
     revalidatePath("/student/attendance");
-    return { ok: true };
+    return { ok: true, info: "Marked — awaiting teacher validation" };
   }
 
   // ── TEACHER: self-attendance → notify all admins ──
@@ -128,10 +127,16 @@ export async function saveBatchAttendance(values: unknown): Promise<ActionResult
     let attendanceId: string;
 
     if (existing) {
-      if (existing.status !== entry.status) {
+      if (existing.status !== entry.status || !existing.validatedById) {
         const updated = await db.attendance.update({
           where: { id: existing.id },
-          data: { status: entry.status, markedAt: new Date() },
+          // Teacher-marked = validated on the spot (FR-ATT-4).
+          data: {
+            status: entry.status,
+            markedAt: new Date(),
+            validatedById: teacher.id,
+            validatedAt: new Date(),
+          },
         });
         attendanceId = updated.id;
         changed = true;
@@ -140,19 +145,67 @@ export async function saveBatchAttendance(values: unknown): Promise<ActionResult
       }
     } else {
       const created = await db.attendance.create({
-        data: { userId: entry.studentId, batchId, date, status: entry.status },
+        data: {
+          userId: entry.studentId,
+          batchId,
+          date,
+          status: entry.status,
+          validatedById: teacher.id,
+          validatedAt: new Date(),
+        },
       });
       attendanceId = created.id;
       changed = true;
     }
 
     if (changed) {
-      await dispatchAttendanceAlert(attendanceId); // step 3a per student
+      await dispatchAttendanceAlert(attendanceId); // parent alert (FR-ATT-6)
       notified++;
     }
+  }
+
+  if (notified > 0) {
+    await notifyAllAdmins({
+      title: "Attendance recorded",
+      message: `${teacher.name} recorded attendance for ${notified} student(s) on ${formatDate(date)}.`,
+      type: "TEACHER_ATTENDANCE",
+    });
   }
 
   revalidatePath("/teacher");
   revalidatePath("/teacher/attendance");
   return { ok: true, info: `Saved. ${notified} parent alert(s) dispatched.` };
+}
+
+/**
+ * Teacher validates a student's self-marked (pending) attendance (FR-ATT-4).
+ * On validation → parent alert (FR-ATT-6) + admin notification.
+ */
+export async function validateAttendance(attendanceId: string): Promise<ActionResult> {
+  const teacher = await requireRole("TEACHER");
+
+  const attendance = await db.attendance.findUnique({
+    where: { id: attendanceId },
+    include: { user: { select: { name: true } } },
+  });
+  if (!attendance || !attendance.batchId) return { ok: false, error: "Attendance not found" };
+  if (!(await teacherOwnsBatch(teacher.id, attendance.batchId))) {
+    return { ok: false, error: "You don't teach this batch" };
+  }
+  if (attendance.validatedById) return { ok: true, info: "Already validated" };
+
+  await db.attendance.update({
+    where: { id: attendanceId },
+    data: { validatedById: teacher.id, validatedAt: new Date() },
+  });
+
+  await dispatchAttendanceAlert(attendanceId); // parent alert
+  await notifyAllAdmins({
+    title: "Attendance validated",
+    message: `${teacher.name} validated ${attendance.user.name}'s attendance (${attendance.status.toLowerCase()}) for ${formatDate(attendance.date)}.`,
+    type: "TEACHER_ATTENDANCE",
+  });
+
+  revalidatePath("/teacher/attendance");
+  return { ok: true, info: "Validated — parent notified, admin recorded" };
 }

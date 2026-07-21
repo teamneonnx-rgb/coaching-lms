@@ -4,12 +4,17 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { assertAdmin } from "@/lib/actions/admin/guard";
+import { requireUser } from "@/lib/session";
 import { batchSchema, updateBatchSchema } from "@/lib/validations/admin";
 
 export type ActionResult = { ok: boolean; error?: string };
 
+// FR-BAT-1 / FR-ROLE-3: both ADMIN and TEACHER can create batches.
 export async function createBatch(values: unknown): Promise<ActionResult> {
-  await assertAdmin();
+  const user = await requireUser();
+  if (user.role !== "ADMIN" && user.role !== "TEACHER") {
+    return { ok: false, error: "Not authorized" };
+  }
 
   const parsed = batchSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
@@ -34,6 +39,7 @@ export async function createBatch(values: unknown): Promise<ActionResult> {
 
   revalidatePath("/admin/batches");
   revalidatePath("/admin");
+  revalidatePath("/teacher/batches");
   return { ok: true };
 }
 

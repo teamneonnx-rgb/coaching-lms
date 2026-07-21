@@ -27,8 +27,10 @@ export default async function StudentResourcePage({
   const resource = await getResourceForStudent(resourceId, batch.id);
   if (!resource) notFound();
 
+  // A pasted URL (http/https) is used directly; an S3/R2 object key is signed.
+  const isUrl = /^https?:\/\//i.test(resource.fileKey);
   const [signedUrl, progress] = await Promise.all([
-    getSignedResourceUrl(resource.fileKey), // expiry <= 3600s (FR-COURSE-03)
+    isUrl ? Promise.resolve(resource.fileKey) : getSignedResourceUrl(resource.fileKey), // FR-COURSE-03
     db.resourceProgress.findUnique({
       where: { studentId_resourceId: { studentId: user.id, resourceId: resource.id } },
       select: { id: true },

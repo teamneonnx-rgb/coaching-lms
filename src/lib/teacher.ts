@@ -56,3 +56,24 @@ export async function getRecentAttendance(userId: string, take = 10) {
     include: { batch: { select: { name: true } } },
   });
 }
+
+// Student self-marked attendances awaiting this teacher's validation (FR-ATT-4).
+export async function getPendingValidations(teacherId: string) {
+  const batches = await getTeacherBatches(teacherId);
+  const batchIds = batches.map((b) => b.id);
+  if (batchIds.length === 0) return [];
+
+  return db.attendance.findMany({
+    where: {
+      batchId: { in: batchIds },
+      validatedById: null,
+      user: { role: "STUDENT" },
+    },
+    orderBy: { markedAt: "desc" },
+    take: 50,
+    include: {
+      user: { select: { name: true, email: true } },
+      batch: { select: { name: true } },
+    },
+  });
+}
