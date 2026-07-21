@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { requireRole } from "@/lib/session";
+import { requireAdminArea } from "@/lib/session";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/admin/page-header";
@@ -8,7 +8,7 @@ import { BulkImportForm } from "@/components/admin/bulk-import-form";
 export const metadata: Metadata = { title: "Bulk import" };
 
 export default async function AdminImportPage() {
-  await requireRole("ADMIN");
+  await requireAdminArea();
   const batches = await db.batch.findMany({
     orderBy: { name: "asc" },
     select: { id: true, name: true },

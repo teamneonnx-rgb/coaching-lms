@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/session";
+import { requireAdminArea } from "@/lib/session";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { AdminHeader } from "@/components/admin/admin-header";
 
@@ -7,7 +7,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireRole("ADMIN");
+  const user = await requireAdminArea();
   const navUser = { name: user.name, email: user.email };
 
   return (

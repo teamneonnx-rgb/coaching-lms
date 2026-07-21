@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { isAdminArea } from "@/lib/roles";
 import { getSignedUploadUrl } from "@/lib/storage";
 import { notifyBatchStudents } from "@/lib/notifications/events";
 
@@ -15,7 +16,7 @@ export type ActionResult = { ok: boolean; error?: string; id?: string };
 // Authorization: admin manages any course; teacher only their own (FR-ROLE-1/3).
 async function assertCanManageCourse(courseId: string) {
   const user = await requireUser();
-  if (user.role === "ADMIN") return user;
+  if (isAdminArea(user.role)) return user;
   if (user.role === "TEACHER") {
     const course = await db.course.findFirst({
       where: { id: courseId, teacherId: user.id },

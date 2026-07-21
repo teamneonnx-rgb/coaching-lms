@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { assertAdmin } from "@/lib/actions/admin/guard";
+import { assertAdmin, assertCanDelete } from "@/lib/actions/admin/guard";
+import { logAudit } from "@/lib/audit";
 import { courseSchema, updateCourseSchema } from "@/lib/validations/admin";
 
 export type ActionResult = { ok: boolean; error?: string };
@@ -68,11 +69,12 @@ export async function updateCourse(values: unknown): Promise<ActionResult> {
 }
 
 export async function deleteCourse(id: string): Promise<ActionResult> {
-  await assertAdmin();
+  const admin = await assertCanDelete(); // IT cannot delete (FR-ROLE-2)
   if (!id) return { ok: false, error: "Missing course id" };
 
   // Cascades to chapters and resources (schema onDelete).
   await db.course.delete({ where: { id } });
+  await logAudit({ actorId: admin.id, actorRole: admin.role, action: "course.delete", entity: "Course", entityId: id });
 
   revalidatePath("/admin/courses");
   revalidatePath("/admin");

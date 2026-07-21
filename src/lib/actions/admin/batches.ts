@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { assertAdmin } from "@/lib/actions/admin/guard";
+import { assertAdmin, assertCanDelete } from "@/lib/actions/admin/guard";
 import { requireUser } from "@/lib/session";
+import { logAudit } from "@/lib/audit";
 import { batchSchema, updateBatchSchema } from "@/lib/validations/admin";
 
 export type ActionResult = { ok: boolean; error?: string };
@@ -74,11 +75,12 @@ export async function updateBatch(values: unknown): Promise<ActionResult> {
 }
 
 export async function deleteBatch(id: string): Promise<ActionResult> {
-  await assertAdmin();
+  const admin = await assertCanDelete(); // IT cannot delete (FR-ROLE-2)
   if (!id) return { ok: false, error: "Missing batch id" };
 
   // Cascades to enrollments, courses, chapters, resources (schema onDelete).
   await db.batch.delete({ where: { id } });
+  await logAudit({ actorId: admin.id, actorRole: admin.role, action: "batch.delete", entity: "Batch", entityId: id });
 
   revalidatePath("/admin/batches");
   revalidatePath("/admin");

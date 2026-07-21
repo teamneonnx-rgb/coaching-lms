@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { requireRole } from "@/lib/session";
+import { requireAdminArea } from "@/lib/session";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnrollmentManager } from "@/components/admin/enrollment-manager";
@@ -14,7 +14,7 @@ export default async function AdminBatchDetailPage({
 }: {
   params: Promise<{ batchId: string }>;
 }) {
-  await requireRole("ADMIN");
+  await requireAdminArea();
   const { batchId } = await params;
 
   const batch = await db.batch.findUnique({
@@ -32,7 +32,7 @@ export default async function AdminBatchDetailPage({
   const enrolledIds = batch.enrollments.map((e) => e.student.id);
   // Students not actively enrolled in this batch (candidates to add).
   const available = await db.user.findMany({
-    where: { role: "STUDENT", id: { notIn: enrolledIds.length ? enrolledIds : ["_none_"] } },
+    where: { role: "STUDENT", deletedAt: null, id: { notIn: enrolledIds.length ? enrolledIds : ["_none_"] } },
     orderBy: { name: "asc" },
     select: { id: true, name: true, email: true },
   });

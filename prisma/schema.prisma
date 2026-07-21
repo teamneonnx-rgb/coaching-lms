@@ -12,9 +12,17 @@ datasource db {
 }
 
 enum Role {
+  SUPER_ADMIN
   ADMIN
+  IT
   TEACHER
   STUDENT
+  PARENT
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 enum ResourceType {
@@ -51,9 +59,13 @@ model User {
   email         String         @unique
   password      String // bcryptjs hash, salt rounds >= 10 (FR-AUTH-03)
   role          Role
+  status        UserStatus     @default(ACTIVE) // FR-AUTH-9
   parentName    String?
   parentPhone   String?
   parentEmail   String?
+  // Multi-tenancy (Q1) — every user belongs to one institute.
+  instituteId   String?
+  institute     Institute?     @relation(fields: [instituteId], references: [id])
   attendances       Attendance[]
   notifications     Notification[]
   courses           Course[] // For Teachers
@@ -62,8 +74,60 @@ model User {
   assessments       Assessment[]       @relation("TeacherAssessments") // For Teachers
   submissions       Submission[]       @relation("StudentSubmissions") // For Students
   gradedSubmissions Submission[]       @relation("GradedSubmissions") // For Teachers
+  // Parent ↔ student links (FR-PAR-1)
+  childLinks        ParentLink[]       @relation("ParentOf") // rows where this user is the parent
+  parentLinks       ParentLink[]       @relation("StudentOf") // rows where this user is the student
+  auditEntries      AuditEntry[]       // actions this user performed
+  // Soft delete (FR-DATA-1/2)
+  deletedAt         DateTime?
+  deletedById       String?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+
+  @@index([instituteId])
+}
+
+// FR-1.2 / Q1 — a tenant. All data hangs off exactly one institute.
+model Institute {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  timezone  String   @default("Asia/Kolkata")
+  currency  String   @default("INR")
+  isActive  Boolean  @default(true)
+  users     User[]
+  batches   Batch[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Links a parent account to a student account (FR-PAR-1).
+model ParentLink {
+  id        String   @id @default(cuid())
+  parentId  String
+  parent    User     @relation("ParentOf", fields: [parentId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User     @relation("StudentOf", fields: [studentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([parentId, studentId])
+  @@index([studentId])
+}
+
+// Immutable audit trail of privileged/destructive actions (FR-ADM-6, NFR-S6).
+model AuditEntry {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actor     User?    @relation(fields: [actorId], references: [id])
+  actorRole String?
+  action    String // e.g. "user.delete", "batch.create"
+  entity    String // e.g. "User"
+  entityId  String?
+  detail    String? // human-readable summary
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([createdAt])
 }
 
 model Batch {
@@ -73,11 +137,17 @@ model Batch {
   startDate   DateTime     @default(now())
   endDate     DateTime?
   isActive    Boolean      @default(true)
+  instituteId String?
+  institute   Institute?   @relation(fields: [instituteId], references: [id])
   courses     Course[]
   enrollments Enrollment[]
   attendances Attendance[]
+  deletedAt   DateTime?
+  deletedById String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+
+  @@index([instituteId])
 }
 
 // Students are grouped into Batches (PRD Module B). isActive marks the
@@ -105,6 +175,8 @@ model Course {
   teacher     User         @relation(fields: [teacherId], references: [id])
   chapters    Chapter[]
   assessments Assessment[]
+  deletedAt   DateTime?
+  deletedById String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
@@ -205,6 +277,8 @@ model Assessment {
   isPublished     Boolean        @default(false)
   questions       Question[]
   submissions     Submission[]
+  deletedAt       DateTime?
+  deletedById     String?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 

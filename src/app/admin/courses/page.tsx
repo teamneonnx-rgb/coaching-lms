@@ -30,7 +30,7 @@ export default async function AdminCoursesPage() {
     }),
     db.batch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.user.findMany({
-      where: { role: "TEACHER" },
+      where: { role: "TEACHER", deletedAt: null },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

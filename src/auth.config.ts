@@ -39,7 +39,8 @@ export const authConfig = {
       const isProtected =
         pathname.startsWith("/admin") ||
         pathname.startsWith("/teacher") ||
-        pathname.startsWith("/student");
+        pathname.startsWith("/student") ||
+        pathname.startsWith("/parent");
 
       // Unauthenticated hitting a protected area → send to /login.
       if (isProtected && !isLoggedIn) return false;

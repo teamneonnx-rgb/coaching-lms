@@ -25,6 +25,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email: email.toLowerCase() },
         });
         if (!user) return null;
+        // Deleted or suspended accounts cannot sign in (FR-AUTH-9, FR-DATA-2).
+        if (user.deletedAt || user.status === "SUSPENDED") return null;
 
         // FR-AUTH-03: compare against the bcrypt hash.
         const valid = await bcrypt.compare(password, user.password);

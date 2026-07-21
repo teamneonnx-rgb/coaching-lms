@@ -9,7 +9,14 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
-export const roleEnum = z.enum(["ADMIN", "TEACHER", "STUDENT"]);
+export const roleEnum = z.enum([
+  "SUPER_ADMIN",
+  "ADMIN",
+  "IT",
+  "TEACHER",
+  "STUDENT",
+  "PARENT",
+]);
 
 // Public self-registration is STUDENT-only (prevents privilege escalation).
 // ADMIN / TEACHER accounts are provisioned via Admin CRUD (Phase 3).

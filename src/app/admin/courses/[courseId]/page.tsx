@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { requireRole } from "@/lib/session";
+import { requireAdminArea } from "@/lib/session";
 import { getManageableCourse } from "@/lib/content";
 import { CourseContentManager } from "@/components/content/course-content-manager";
 
@@ -14,7 +14,7 @@ export default async function AdminCourseContentPage({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
-  const admin = await requireRole("ADMIN");
+  const admin = await requireAdminArea();
   const course = await getManageableCourse(admin.id, admin.role, courseId);
   if (!course) notFound();
 

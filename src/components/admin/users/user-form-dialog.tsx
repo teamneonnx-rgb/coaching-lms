@@ -55,7 +55,7 @@ function makeSchema(mode: "create" | "edit") {
         mode === "create"
           ? z.string().min(8, "Password must be at least 8 characters").max(72)
           : z.string().max(72).optional().or(z.literal("")),
-      role: z.enum(["ADMIN", "TEACHER", "STUDENT"]),
+      role: z.enum(["SUPER_ADMIN", "ADMIN", "IT", "TEACHER", "STUDENT", "PARENT"]),
       parentName: z.string().trim().max(100).optional().or(z.literal("")),
       parentPhone: z.string().trim().max(20).optional().or(z.literal("")),
       parentEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
@@ -194,9 +194,12 @@ export function UserFormDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
+                        <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                         <SelectItem value="ADMIN">Admin</SelectItem>
+                        <SelectItem value="IT">IT</SelectItem>
                         <SelectItem value="TEACHER">Teacher</SelectItem>
                         <SelectItem value="STUDENT">Student</SelectItem>
+                        <SelectItem value="PARENT">Parent</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />

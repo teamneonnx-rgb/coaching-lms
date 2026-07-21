@@ -44,13 +44,14 @@ type Metric = { label: string; value: number; icon: LucideIcon; tint: string };
 export default async function AdminDashboard() {
   const [studentCount, teacherCount, adminCount, batchCount, courseCount, signupDates, recentUsers] =
     await Promise.all([
-      db.user.count({ where: { role: "STUDENT" } }),
-      db.user.count({ where: { role: "TEACHER" } }),
-      db.user.count({ where: { role: "ADMIN" } }),
-      db.batch.count(),
-      db.course.count(),
-      db.user.findMany({ select: { createdAt: true } }),
+      db.user.count({ where: { role: "STUDENT", deletedAt: null } }),
+      db.user.count({ where: { role: "TEACHER", deletedAt: null } }),
+      db.user.count({ where: { role: { in: ["SUPER_ADMIN", "ADMIN", "IT"] }, deletedAt: null } }),
+      db.batch.count({ where: { deletedAt: null } }),
+      db.course.count({ where: { deletedAt: null } }),
+      db.user.findMany({ where: { deletedAt: null }, select: { createdAt: true } }),
       db.user.findMany({
+        where: { deletedAt: null },
         orderBy: { createdAt: "desc" },
         take: 6,
         select: { id: true, name: true, role: true, createdAt: true },

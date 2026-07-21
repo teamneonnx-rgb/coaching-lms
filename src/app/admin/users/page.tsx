@@ -25,6 +25,7 @@ export const metadata: Metadata = { title: "Users" };
 
 export default async function AdminUsersPage() {
   const users = await db.user.findMany({
+    where: { deletedAt: null },
     orderBy: [{ role: "asc" }, { createdAt: "desc" }],
     select: {
       id: true,
