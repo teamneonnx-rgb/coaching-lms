@@ -8,6 +8,7 @@ import {
   Users,
   Layers,
   BookOpen,
+  Upload,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,7 @@ const NAV: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/batches", label: "Batches", icon: Layers },
   { href: "/admin/courses", label: "Courses", icon: BookOpen },
+  { href: "/admin/import", label: "Bulk import", icon: Upload },
 ];
 
 export function AdminSidebar({

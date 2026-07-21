@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Layers } from "lucide-react";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,7 +67,11 @@ export default async function AdminBatchesPage() {
                 <TableBody>
                   {batches.map((b) => (
                     <TableRow key={b.id}>
-                      <TableCell className="font-medium text-slate-900">{b.name}</TableCell>
+                      <TableCell className="font-medium text-slate-900">
+                        <Link href={`/admin/batches/${b.id}`} className="hover:text-blue-600 hover:underline">
+                          {b.name}
+                        </Link>
+                      </TableCell>
                       <TableCell className="text-slate-600">
                         {b.startDate.toISOString().slice(0, 10)}
                       </TableCell>
