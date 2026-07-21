@@ -1,0 +1,31 @@
+"use server";
+
+import { z } from "zod";
+import { db } from "@/lib/db";
+import { requireRole } from "@/lib/session";
+
+export type ActionResult = { ok: boolean; error?: string };
+
+const idSchema = z.object({ id: z.string().min(1) });
+
+export async function markAllNotificationsRead(): Promise<ActionResult> {
+  const admin = await requireRole("ADMIN");
+  await db.notification.updateMany({
+    where: { userId: admin.id, isRead: false },
+    data: { isRead: true },
+  });
+  return { ok: true };
+}
+
+export async function markNotificationRead(values: unknown): Promise<ActionResult> {
+  const admin = await requireRole("ADMIN");
+  const parsed = idSchema.safeParse(values);
+  if (!parsed.success) return { ok: false, error: "Invalid input" };
+
+  // Scope to this admin's own notifications.
+  await db.notification.updateMany({
+    where: { id: parsed.data.id, userId: admin.id },
+    data: { isRead: true },
+  });
+  return { ok: true };
+}

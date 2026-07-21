@@ -1,0 +1,269 @@
+// Multi-Tenant Coaching Institute LMS — Prisma Schema
+// Target per PRD §5 / SRD §3. Hierarchy: Batch → Course → Chapter → Resource (FR-COURSE-01)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum ResourceType {
+  VIDEO
+  PDF
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  ON_LEAVE
+}
+
+enum NotificationType {
+  TEACHER_ATTENDANCE
+  STUDENT_ENROLLMENT
+  SYSTEM_ALERT
+}
+
+enum AssessmentType {
+  OBJECTIVE
+  SUBJECTIVE
+}
+
+enum SubmissionStatus {
+  SUBMITTED
+  GRADED
+}
+
+model User {
+  id            String         @id @default(cuid())
+  name          String
+  email         String         @unique
+  password      String // bcryptjs hash, salt rounds >= 10 (FR-AUTH-03)
+  role          Role
+  parentName    String?
+  parentPhone   String?
+  parentEmail   String?
+  attendances       Attendance[]
+  notifications     Notification[]
+  courses           Course[] // For Teachers
+  enrollments       Enrollment[] // For Students
+  progress          ResourceProgress[] // For Students
+  assessments       Assessment[]       @relation("TeacherAssessments") // For Teachers
+  submissions       Submission[]       @relation("StudentSubmissions") // For Students
+  gradedSubmissions Submission[]       @relation("GradedSubmissions") // For Teachers
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+}
+
+model Batch {
+  id          String       @id @default(cuid())
+  name        String       @unique
+  description String?
+  startDate   DateTime     @default(now())
+  endDate     DateTime?
+  isActive    Boolean      @default(true)
+  courses     Course[]
+  enrollments Enrollment[]
+  attendances Attendance[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+// Students are grouped into Batches (PRD Module B). isActive marks the
+// student's current batch — content isolation keys off it (FR-COURSE-02).
+model Enrollment {
+  id         String   @id @default(cuid())
+  studentId  String
+  student    User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  batchId    String
+  batch      Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  isActive   Boolean  @default(true)
+  enrolledAt DateTime @default(now())
+
+  @@unique([studentId, batchId])
+  @@index([batchId])
+}
+
+model Course {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  batchId     String
+  batch       Batch        @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  teacherId   String
+  teacher     User         @relation(fields: [teacherId], references: [id])
+  chapters    Chapter[]
+  assessments Assessment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([batchId])
+  @@index([teacherId])
+}
+
+model Chapter {
+  id        String     @id @default(cuid())
+  title     String
+  order     Int        @default(0)
+  courseId  String
+  course    Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  resources Resource[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@index([courseId])
+}
+
+model Resource {
+  id        String       @id @default(cuid())
+  title     String
+  type      ResourceType
+  fileKey   String // S3/R2 object key — served via signed URLs, expiry <= 3600s (FR-COURSE-03)
+  fileSize  Int? // bytes
+  duration  Int? // seconds, VIDEO only
+  order     Int          @default(0)
+  chapterId String
+  chapter   Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  progress  ResourceProgress[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([chapterId])
+}
+
+// Per-student completion tracking (powers the "Process vs Done" progress donut).
+model ResourceProgress {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  resourceId  String
+  resource    Resource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+
+  @@unique([studentId, resourceId])
+  @@index([studentId])
+}
+
+model Attendance {
+  id       String           @id @default(cuid())
+  date     DateTime         @default(now()) @db.Date
+  status   AttendanceStatus @default(PRESENT)
+  userId   String
+  user     User             @relation(fields: [userId], references: [id])
+  batchId  String?
+  batch    Batch?           @relation(fields: [batchId], references: [id])
+  markedAt DateTime         @default(now())
+
+  // FR-ATT-01: prevents duplicate attendance entries
+  @@unique([userId, date, batchId])
+  @@index([batchId, date])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  title     String
+  message   String
+  type      NotificationType @default(SYSTEM_ALERT)
+  isRead    Boolean          @default(false)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+}
+
+// ── Assessments (Phase 7) ──────────────────────────────────────────
+// An assessment belongs to a Course (→ Batch), so student access inherits
+// batch isolation (FR-COURSE-02). OBJECTIVE = auto-graded MCQs with negative
+// marking; SUBJECTIVE = student uploads a PDF/image scan for manual grading.
+model Assessment {
+  id              String         @id @default(cuid())
+  title           String
+  description     String?
+  type            AssessmentType @default(OBJECTIVE)
+  courseId        String
+  course          Course         @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacherId       String
+  teacher         User           @relation("TeacherAssessments", fields: [teacherId], references: [id])
+  negativeMarking Float          @default(0) // fraction of points deducted per wrong answer (0..1)
+  timeLimit       Int? // minutes
+  isPublished     Boolean        @default(false)
+  questions       Question[]
+  submissions     Submission[]
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([courseId])
+  @@index([teacherId])
+}
+
+model Question {
+  id           String           @id @default(cuid())
+  assessmentId String
+  assessment   Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  text         String
+  points       Int              @default(1)
+  order        Int              @default(0)
+  options      QuestionOption[]
+  answers      Answer[]
+
+  @@index([assessmentId])
+}
+
+model QuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean  @default(false)
+  order      Int      @default(0)
+  answers    Answer[]
+
+  @@index([questionId])
+}
+
+model Submission {
+  id           String           @id @default(cuid())
+  assessmentId String
+  assessment   Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User             @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  status       SubmissionStatus @default(SUBMITTED)
+  score        Float?
+  maxScore     Int?
+  feedback     String?
+  fileKey      String? // subjective upload (PDF/image), served via signed URL
+  gradedById   String?
+  gradedBy     User?            @relation("GradedSubmissions", fields: [gradedById], references: [id])
+  gradedAt     DateTime?
+  submittedAt  DateTime         @default(now())
+  answers      Answer[]
+
+  @@unique([assessmentId, studentId])
+  @@index([assessmentId])
+  @@index([studentId])
+}
+
+model Answer {
+  id               String          @id @default(cuid())
+  submissionId     String
+  submission       Submission      @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  questionId       String
+  question         Question        @relation(fields: [questionId], references: [id])
+  selectedOptionId String?
+  selectedOption   QuestionOption? @relation(fields: [selectedOptionId], references: [id])
+  isCorrect        Boolean?
+
+  @@index([submissionId])
+}

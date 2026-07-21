@@ -1,0 +1,3 @@
+# Keep Prisma migration SQL byte-stable so its checksum matches the
+# baseline row recorded in _prisma_migrations (prevents migrate deploy drift).
+prisma/migrations/**/*.sql text eol=lf
