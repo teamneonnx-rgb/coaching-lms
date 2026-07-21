@@ -1,17 +1,15 @@
 import "server-only";
+import { getIntegrationConfig } from "@/lib/settings";
 
-// SMS via Twilio REST API (spec allows Twilio/MSG91). Degrades to a console log
-// when unconfigured so attendance flows work end-to-end without credentials.
-
-export function isSmsConfigured(): boolean {
-  return Boolean(
-    process.env.TWILIO_ACCOUNT_SID &&
-      process.env.TWILIO_AUTH_TOKEN &&
-      process.env.TWILIO_FROM_NUMBER
-  );
-}
+// SMS via Twilio REST API. Reads credentials from the Control Center settings
+// (DB) with env-var fallback. Degrades to a console log when unconfigured.
 
 export type SendResult = { ok: boolean; skipped?: boolean; error?: string };
+
+export async function isSmsConfigured(): Promise<boolean> {
+  const { sms } = await getIntegrationConfig();
+  return Boolean(sms.twilioSid && sms.twilioToken && sms.twilioFrom);
+}
 
 export async function sendSms({
   to,
@@ -20,14 +18,13 @@ export async function sendSms({
   to: string;
   body: string;
 }): Promise<SendResult> {
-  if (!isSmsConfigured()) {
+  const { sms } = await getIntegrationConfig();
+  if (!sms.twilioSid || !sms.twilioToken || !sms.twilioFrom) {
     console.log(`[sms skipped — not configured] to=${to} body="${body}"`);
     return { ok: false, skipped: true };
   }
 
-  const sid = process.env.TWILIO_ACCOUNT_SID!;
-  const token = process.env.TWILIO_AUTH_TOKEN!;
-  const from = process.env.TWILIO_FROM_NUMBER!;
+  const { twilioSid: sid, twilioToken: token, twilioFrom: from } = sms;
 
   try {
     const auth = Buffer.from(`${sid}:${token}`).toString("base64");

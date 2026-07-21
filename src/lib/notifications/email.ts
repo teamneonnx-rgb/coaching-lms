@@ -1,13 +1,16 @@
 import "server-only";
+import { getIntegrationConfig } from "@/lib/settings";
 
-// Email via Resend REST API. Degrades to a console log when unconfigured so
-// attendance flows work end-to-end without credentials.
-
-export function isEmailConfigured(): boolean {
-  return Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
-}
+// Email via Resend REST API. Reads credentials from the Control Center settings
+// (DB) with env-var fallback, so admins can configure it from the portal.
+// Degrades to a console log when unconfigured.
 
 export type SendResult = { ok: boolean; skipped?: boolean; error?: string };
+
+export async function isEmailConfigured(): Promise<boolean> {
+  const { email } = await getIntegrationConfig();
+  return Boolean(email.resendApiKey && email.fromEmail);
+}
 
 export async function sendEmail({
   to,
@@ -18,7 +21,8 @@ export async function sendEmail({
   subject: string;
   html: string;
 }): Promise<SendResult> {
-  if (!isEmailConfigured()) {
+  const { email } = await getIntegrationConfig();
+  if (!email.resendApiKey || !email.fromEmail) {
     console.log(`[email skipped — not configured] to=${to} subject="${subject}"`);
     return { ok: false, skipped: true };
   }
@@ -27,10 +31,10 @@ export async function sendEmail({
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
+        Authorization: `Bearer ${email.resendApiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ from: process.env.EMAIL_FROM, to, subject, html }),
+      body: JSON.stringify({ from: email.fromEmail, to, subject, html }),
     });
     if (!res.ok) {
       const error = await res.text();

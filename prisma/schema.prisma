@@ -114,6 +114,20 @@ model ParentLink {
   @@index([studentId])
 }
 
+// Per-institute key/value settings — integration credentials + feature toggles,
+// editable from the Control Center (FR-CC-1, FR-SMTP-1, FR-PAY-2, FR-WA-1).
+// Secret values are masked in the UI and never returned to the client.
+model Setting {
+  id          String   @id @default(cuid())
+  instituteId String
+  key         String // e.g. "razorpay.keyId", "whatsapp.token", "feature.approval"
+  value       String
+  updatedAt   DateTime @updatedAt
+
+  @@unique([instituteId, key])
+  @@index([instituteId])
+}
+
 // Immutable audit trail of privileged/destructive actions (FR-ADM-6, NFR-S6).
 model AuditEntry {
   id        String   @id @default(cuid())
