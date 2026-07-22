@@ -74,6 +74,9 @@ model User {
   assessments       Assessment[]       @relation("TeacherAssessments") // For Teachers
   submissions       Submission[]       @relation("StudentSubmissions") // For Students
   gradedSubmissions Submission[]       @relation("GradedSubmissions") // For Teachers
+  assignments       Assignment[]       @relation("TeacherAssignments") // For Teachers
+  assignmentSubmissions AssignmentSubmission[] @relation("StudentAssignmentSubmissions") // For Students
+  gradedAssignments AssignmentSubmission[] @relation("GradedAssignmentSubmissions") // For Teachers
   // Parent ↔ student links (FR-PAR-1)
   childLinks        ParentLink[]       @relation("ParentOf") // rows where this user is the parent
   parentLinks       ParentLink[]       @relation("StudentOf") // rows where this user is the student
@@ -189,6 +192,7 @@ model Course {
   teacher     User         @relation(fields: [teacherId], references: [id])
   chapters    Chapter[]
   assessments Assessment[]
+  assignments Assignment[]
   deletedAt   DateTime?
   deletedById String?
   createdAt   DateTime     @default(now())
@@ -358,4 +362,55 @@ model Answer {
   isCorrect        Boolean?
 
   @@index([submissionId])
+}
+
+// ── Assignments (Phase / FR-ASG) ───────────────────────────────────
+enum AssignmentSubmissionType {
+  FILE
+  TEXT
+  BOTH
+}
+
+model Assignment {
+  id             String                   @id @default(cuid())
+  title          String
+  instructions   String?
+  courseId       String
+  course         Course                   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacherId      String
+  teacher        User                     @relation("TeacherAssignments", fields: [teacherId], references: [id])
+  dueDate        DateTime?
+  totalMarks     Int                      @default(100)
+  allowLate      Boolean                  @default(true)
+  submissionType AssignmentSubmissionType @default(BOTH)
+  submissions    AssignmentSubmission[]
+  deletedAt      DateTime?
+  deletedById    String?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@index([courseId])
+  @@index([teacherId])
+}
+
+model AssignmentSubmission {
+  id           String           @id @default(cuid())
+  assignmentId String
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId    String
+  student      User             @relation("StudentAssignmentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+  text         String?
+  fileKey      String? // uploaded file, served via signed URL
+  status       SubmissionStatus @default(SUBMITTED)
+  score        Float?
+  feedback     String?
+  isLate       Boolean          @default(false)
+  gradedById   String?
+  gradedBy     User?            @relation("GradedAssignmentSubmissions", fields: [gradedById], references: [id])
+  gradedAt     DateTime?
+  submittedAt  DateTime         @default(now())
+
+  @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
 }

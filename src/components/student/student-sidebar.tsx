@@ -8,6 +8,7 @@ import {
   BookOpen,
   CalendarCheck,
   ClipboardList,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ const NAV: NavItem[] = [
   { href: "/student", label: "Dashboard", icon: LayoutDashboard },
   { href: "/student/courses", label: "My Courses", icon: BookOpen },
   { href: "/student/assessments", label: "Assessments", icon: ClipboardList },
+  { href: "/student/assignments", label: "Assignments", icon: FileText },
   { href: "/student/attendance", label: "Attendance", icon: CalendarCheck },
 ];
 

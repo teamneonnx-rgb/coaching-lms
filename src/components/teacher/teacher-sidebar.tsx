@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   CalendarCheck,
   ClipboardList,
+  FileText,
   BookOpen,
   Layers,
   type LucideIcon,
@@ -22,6 +23,7 @@ const NAV: NavItem[] = [
   { href: "/teacher/content", label: "Content", icon: BookOpen },
   { href: "/teacher/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/teacher/assessments", label: "Assessments", icon: ClipboardList },
+  { href: "/teacher/assignments", label: "Assignments", icon: FileText },
 ];
 
 export function TeacherSidebar({
