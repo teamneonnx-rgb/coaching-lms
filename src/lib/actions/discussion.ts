@@ -7,6 +7,7 @@ import { requireUser, requireRole } from "@/lib/session";
 import { getActiveBatch } from "@/lib/student";
 import { notifyUser } from "@/lib/notifications/events";
 import { isAdminArea } from "@/lib/roles";
+import { getAccessPolicy } from "@/lib/access-policy";
 
 export type ActionResult = { ok: boolean; error?: string; info?: string; id?: string };
 
@@ -171,6 +172,9 @@ export async function postComment(values: unknown): Promise<ActionResult> {
 
   let allowed = course.teacherId === user.id || isAdminArea(user.role);
   if (!allowed && user.role === "STUDENT") {
+    // FR-ACL: student commenting can be disabled institute-wide.
+    const policy = await getAccessPolicy();
+    if (!policy.studentComments) return { ok: false, error: "Commenting is disabled" };
     const batch = await getActiveBatch(user.id);
     allowed = !!batch && batch.id === course.batchId;
   }

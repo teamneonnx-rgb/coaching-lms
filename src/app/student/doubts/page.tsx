@@ -23,7 +23,7 @@ export default async function StudentDoubtsPage() {
   }
 
   const [doubts, courses] = await Promise.all([
-    getStudentDoubts(batch.id),
+    getStudentDoubts(batch.id, user.id),
     getBatchCourseOptions(batch.id),
   ]);
 

@@ -24,7 +24,7 @@ export default async function StudentDoubtPage({ params }: { params: Promise<{ i
     );
   }
 
-  const doubt = await getDoubtForStudent(id, batch.id);
+  const doubt = await getDoubtForStudent(id, batch.id, user.id);
   if (!doubt) notFound();
 
   const replies = doubt.replies.map((r) => ({

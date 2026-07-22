@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { getActiveBatch, getResourceForStudent } from "@/lib/student";
 import { getSignedResourceUrl, isStorageConfigured } from "@/lib/storage";
 import { getResourceComments } from "@/lib/discussion";
+import { getAccessPolicy } from "@/lib/access-policy";
 import { MarkCompleteButton } from "@/components/student/mark-complete-button";
 import { ResourceComments } from "@/components/discussion/resource-comments";
 
@@ -41,6 +42,7 @@ export default async function StudentResourcePage({
   ]);
 
   const completed = Boolean(progress);
+  const policy = await getAccessPolicy();
   const comments = commentRows.map((c) => ({
     id: c.id,
     authorName: c.author.name ?? "User",
@@ -100,7 +102,7 @@ export default async function StudentResourcePage({
         />
       )}
 
-      <ResourceComments resourceId={resource.id} comments={comments} />
+      <ResourceComments resourceId={resource.id} comments={comments} canComment={policy.studentComments} />
     </div>
   );
 }

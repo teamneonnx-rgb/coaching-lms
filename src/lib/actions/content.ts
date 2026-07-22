@@ -7,6 +7,7 @@ import { requireUser } from "@/lib/session";
 import { isAdminArea } from "@/lib/roles";
 import { getSignedUploadUrl } from "@/lib/storage";
 import { notifyBatchStudents, notifyAdmins } from "@/lib/notifications/events";
+import { getAccessPolicy } from "@/lib/access-policy";
 
 // Content authoring (FR-CRS / FR-RES / FR-CNT). Both ADMIN (any course) and
 // TEACHER (own courses) can post content — server-side authorization (FR-RBAC-1).
@@ -100,8 +101,10 @@ export async function createResource(values: unknown): Promise<ActionResult> {
   if (!courseId) return { ok: false, error: "Chapter not found" };
   const user = await assertCanManageCourse(courseId);
 
-  // FR-APR: admin-added content is auto-approved; teacher content needs review.
-  const autoApprove = isAdminArea(user.role);
+  // FR-APR / FR-ACL: admin content is always auto-approved; teacher content is
+  // auto-approved only when the institute's approval policy is switched off.
+  const policy = await getAccessPolicy();
+  const autoApprove = isAdminArea(user.role) || !policy.contentApproval;
 
   const count = await db.resource.count({ where: { chapterId: parsed.data.chapterId } });
   const resource = await db.resource.create({

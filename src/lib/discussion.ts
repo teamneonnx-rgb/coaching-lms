@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/lib/db";
+import { getAccessPolicy } from "@/lib/access-policy";
 
 // ── Q&A / Doubts ───────────────────────────────────────────────────
 // Teacher: doubts raised on any course this teacher owns.
@@ -30,10 +31,16 @@ export async function getDoubtForTeacher(id: string, teacherId: string) {
   });
 }
 
-// Student: doubts across the courses of their active batch (peers included).
-export async function getStudentDoubts(batchId: string) {
+// Student: doubts across the courses of their active batch. When the institute
+// disables public doubts (FR-ACL), a student sees only their own threads.
+export async function getStudentDoubts(batchId: string, studentId: string) {
+  const policy = await getAccessPolicy();
   return db.doubt.findMany({
-    where: { course: { batchId }, deletedAt: null },
+    where: {
+      course: { batchId },
+      deletedAt: null,
+      ...(policy.publicDoubts ? {} : { authorId: studentId }),
+    },
     orderBy: [{ isResolved: "asc" }, { createdAt: "desc" }],
     include: {
       course: { select: { title: true } },
@@ -43,9 +50,15 @@ export async function getStudentDoubts(batchId: string) {
   });
 }
 
-export async function getDoubtForStudent(id: string, batchId: string) {
+export async function getDoubtForStudent(id: string, batchId: string, studentId: string) {
+  const policy = await getAccessPolicy();
   return db.doubt.findFirst({
-    where: { id, course: { batchId }, deletedAt: null },
+    where: {
+      id,
+      course: { batchId },
+      deletedAt: null,
+      ...(policy.publicDoubts ? {} : { authorId: studentId }),
+    },
     include: {
       course: { select: { title: true } },
       author: { select: { name: true, role: true } },

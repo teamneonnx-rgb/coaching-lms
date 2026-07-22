@@ -12,6 +12,7 @@ import {
   Trash2,
   BarChart3,
   BadgeCheck,
+  ShieldCheck,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +30,7 @@ const NAV: NavItem[] = [
   { href: "/admin/approvals", label: "Approvals", icon: BadgeCheck },
   { href: "/admin/import", label: "Bulk import", icon: Upload },
   { href: "/admin/control-center", label: "Control Center", icon: SlidersHorizontal },
+  { href: "/admin/access-control", label: "Access Control", icon: ShieldCheck },
   { href: "/admin/recycle-bin", label: "Recycle bin", icon: Trash2 },
 ];
 

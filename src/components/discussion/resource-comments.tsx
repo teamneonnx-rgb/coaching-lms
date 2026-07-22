@@ -24,9 +24,11 @@ const ROLE_LABEL: Record<string, string> = {
 export function ResourceComments({
   resourceId,
   comments,
+  canComment = true,
 }: {
   resourceId: string;
   comments: ResourceCommentItem[];
+  canComment?: boolean;
 }) {
   const router = useRouter();
   const [body, setBody] = useState("");
@@ -85,12 +87,18 @@ export function ResourceComments({
         )}
       </ul>
 
-      <div className="space-y-2">
-        <Textarea rows={2} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add a comment…" />
-        <Button onClick={post} disabled={isPending || body.trim().length === 0} className="bg-slate-800 text-white hover:bg-slate-800/90">
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Comment
-        </Button>
-      </div>
+      {canComment ? (
+        <div className="space-y-2">
+          <Textarea rows={2} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add a comment…" />
+          <Button onClick={post} disabled={isPending || body.trim().length === 0} className="bg-slate-800 text-white hover:bg-slate-800/90">
+            {isPending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />} Comment
+          </Button>
+        </div>
+      ) : (
+        <p className="rounded-lg border border-dashed border-slate-200 px-4 py-3 text-center text-sm text-muted-foreground">
+          Commenting is currently disabled.
+        </p>
+      )}
     </div>
   );
 }
