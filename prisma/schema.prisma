@@ -53,6 +53,15 @@ enum SubmissionStatus {
   GRADED
 }
 
+// Content publishing approval (FR-APR). Teacher-added resources start PENDING
+// and are hidden from students until an admin approves them. Existing rows and
+// admin-added content default to APPROVED so behaviour is unchanged on upgrade.
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id            String         @id @default(cuid())
   name          String
@@ -234,10 +243,15 @@ model Resource {
   chapter   Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   progress  ResourceProgress[]
   comments  Comment[]
+  // Approval workflow (FR-APR)
+  approvalStatus ApprovalStatus @default(APPROVED)
+  reviewedById   String?
+  reviewedAt     DateTime?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
   @@index([chapterId])
+  @@index([approvalStatus])
 }
 
 // Per-student completion tracking (powers the "Process vs Done" progress donut).

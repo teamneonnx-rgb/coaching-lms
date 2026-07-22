@@ -22,7 +22,7 @@ export async function getStudentCourses(studentId: string, batchId: string) {
       teacher: { select: { name: true } },
       _count: { select: { chapters: true } },
       chapters: {
-        select: { _count: { select: { resources: true } } },
+        select: { _count: { select: { resources: { where: { approvalStatus: "APPROVED" } } } } },
       },
     },
   });
@@ -43,6 +43,7 @@ export async function getCourseForStudent(
         orderBy: { order: "asc" },
         include: {
           resources: {
+            where: { approvalStatus: "APPROVED" }, // FR-APR: hide unapproved content
             orderBy: { order: "asc" },
             select: { id: true, title: true, type: true, duration: true, fileSize: true },
           },
@@ -58,6 +59,7 @@ export async function getResourceForStudent(resourceId: string, batchId: string)
   return db.resource.findFirst({
     where: {
       id: resourceId,
+      approvalStatus: "APPROVED", // FR-APR: unapproved content is not reachable
       chapter: { course: { batchId } }, // tenancy filter through relations
     },
     include: {
@@ -75,9 +77,9 @@ export async function getResourceForStudent(resourceId: string, batchId: string)
 // Progress totals for the "Process vs Done" donut (scoped to active batch).
 export async function getStudentProgress(studentId: string, batchId: string) {
   const [total, done] = await Promise.all([
-    db.resource.count({ where: { chapter: { course: { batchId } } } }),
+    db.resource.count({ where: { approvalStatus: "APPROVED", chapter: { course: { batchId } } } }),
     db.resourceProgress.count({
-      where: { studentId, resource: { chapter: { course: { batchId } } } },
+      where: { studentId, resource: { approvalStatus: "APPROVED", chapter: { course: { batchId } } } },
     }),
   ]);
   return { total, done, remaining: Math.max(total - done, 0) };

@@ -157,8 +157,8 @@ export async function getTeacherClassReport(teacherId: string) {
 export async function getStudentReport(studentId: string, batchId: string) {
   const [attRows, totalResources, completed, assessSubs, assignSubs] = await Promise.all([
     db.attendance.groupBy({ by: ["status"], where: { userId: studentId, batchId }, _count: { _all: true } }),
-    db.resource.count({ where: { chapter: { course: { batchId, deletedAt: null } } } }),
-    db.resourceProgress.count({ where: { studentId, resource: { chapter: { course: { batchId, deletedAt: null } } } } }),
+    db.resource.count({ where: { approvalStatus: "APPROVED", chapter: { course: { batchId, deletedAt: null } } } }),
+    db.resourceProgress.count({ where: { studentId, resource: { approvalStatus: "APPROVED", chapter: { course: { batchId, deletedAt: null } } } } }),
     db.submission.findMany({
       where: { status: "GRADED", studentId, assessment: { course: { batchId } } },
       select: { score: true, maxScore: true, assessment: { select: { title: true } } },

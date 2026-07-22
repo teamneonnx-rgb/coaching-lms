@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { isAdminArea } from "@/lib/roles";
 import { getSignedUploadUrl } from "@/lib/storage";
-import { notifyBatchStudents } from "@/lib/notifications/events";
+import { notifyBatchStudents, notifyAdmins } from "@/lib/notifications/events";
 
 // Content authoring (FR-CRS / FR-RES / FR-CNT). Both ADMIN (any course) and
 // TEACHER (own courses) can post content — server-side authorization (FR-RBAC-1).
@@ -98,7 +98,10 @@ export async function createResource(values: unknown): Promise<ActionResult> {
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const courseId = await courseIdForChapter(parsed.data.chapterId);
   if (!courseId) return { ok: false, error: "Chapter not found" };
-  await assertCanManageCourse(courseId);
+  const user = await assertCanManageCourse(courseId);
+
+  // FR-APR: admin-added content is auto-approved; teacher content needs review.
+  const autoApprove = isAdminArea(user.role);
 
   const count = await db.resource.count({ where: { chapterId: parsed.data.chapterId } });
   const resource = await db.resource.create({
@@ -109,15 +112,27 @@ export async function createResource(values: unknown): Promise<ActionResult> {
       fileKey: parsed.data.fileKey,
       duration: parsed.data.type === "VIDEO" ? parsed.data.duration ?? null : null,
       order: count,
+      approvalStatus: autoApprove ? "APPROVED" : "PENDING",
+      reviewedById: autoApprove ? user.id : null,
+      reviewedAt: autoApprove ? new Date() : null,
     },
     select: { id: true },
   });
 
-  // FR-NOT: notify batch students that new material was published.
-  await notifyBatchStudents(courseId, {
-    title: "New material added",
-    message: `A new ${parsed.data.type.toLowerCase()} "${parsed.data.title}" was added to your course.`,
-  });
+  if (autoApprove) {
+    // FR-NOT: notify batch students that new material was published.
+    await notifyBatchStudents(courseId, {
+      title: "New material added",
+      message: `A new ${parsed.data.type.toLowerCase()} "${parsed.data.title}" was added to your course.`,
+    });
+  } else {
+    // Queue for admin review instead of publishing immediately.
+    await notifyAdmins({
+      title: "Content awaiting approval",
+      message: `${user.name} submitted "${parsed.data.title}" for review.`,
+    });
+    revalidatePath("/admin/approvals");
+  }
 
   contentPaths(courseId);
   return { ok: true, id: resource.id };

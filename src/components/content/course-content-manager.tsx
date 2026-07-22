@@ -46,7 +46,7 @@ import {
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { EmptyState } from "@/components/empty-state";
 
-type Resource = { id: string; title: string; type: "VIDEO" | "PDF"; duration: number | null };
+type Resource = { id: string; title: string; type: "VIDEO" | "PDF"; duration: number | null; approvalStatus?: "PENDING" | "APPROVED" | "REJECTED" };
 type Chapter = { id: string; title: string; resources: Resource[] };
 
 export function CourseContentManager({
@@ -108,6 +108,11 @@ export function CourseContentManager({
                             {r.type === "VIDEO" ? <PlayCircle className="size-4" /> : <FileText className="size-4" />}
                           </span>
                           <span className="flex-1 truncate text-sm text-slate-900">{r.title}</span>
+                          {r.approvalStatus === "PENDING" ? (
+                            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">Pending review</span>
+                          ) : r.approvalStatus === "REJECTED" ? (
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">Rejected</span>
+                          ) : null}
                           <span className="text-xs text-muted-foreground">{r.type}</span>
                           <ConfirmDeleteDialog
                             title="Delete resource"

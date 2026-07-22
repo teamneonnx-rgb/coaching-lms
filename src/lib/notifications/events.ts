@@ -20,6 +20,31 @@ async function studentsForCourse(courseId: string) {
   return enrollments.map((e) => e.student);
 }
 
+// Notify all admin-area users (SUPER_ADMIN / ADMIN) — e.g. content awaiting
+// approval. IT is excluded as it can't approve content (FR-APR / FR-RBAC).
+export async function notifyAdmins(msg: { title: string; message: string }) {
+  const admins = await db.user.findMany({
+    where: { role: { in: ["SUPER_ADMIN", "ADMIN"] }, deletedAt: null },
+    select: { id: true, name: true, email: true },
+  });
+  if (admins.length === 0) return;
+
+  await db.notification.createMany({
+    data: admins.map((a) => ({
+      userId: a.id,
+      title: msg.title,
+      message: msg.message,
+      type: "SYSTEM_ALERT" as const,
+    })),
+  });
+
+  void Promise.allSettled(
+    admins
+      .filter((a) => a.email)
+      .map((a) => sendEmail({ to: a.email, subject: msg.title, html: emailHtml(a.name, msg.title, msg.message) }))
+  ).catch(() => {});
+}
+
 // Notify every student in a course's batch (in-app + email).
 export async function notifyBatchStudents(
   courseId: string,
