@@ -77,6 +77,11 @@ model User {
   assignments       Assignment[]       @relation("TeacherAssignments") // For Teachers
   assignmentSubmissions AssignmentSubmission[] @relation("StudentAssignmentSubmissions") // For Students
   gradedAssignments AssignmentSubmission[] @relation("GradedAssignmentSubmissions") // For Teachers
+  // Q&A / discussion (FR-QNA, FR-CMT, FR-FBK)
+  doubts            Doubt[]            @relation("DoubtAuthor")
+  doubtReplies      DoubtReply[]       @relation("DoubtReplyAuthor")
+  comments          Comment[]          @relation("CommentAuthor")
+  feedback          Feedback[]         @relation("FeedbackAuthor")
   // Parent ↔ student links (FR-PAR-1)
   childLinks        ParentLink[]       @relation("ParentOf") // rows where this user is the parent
   parentLinks       ParentLink[]       @relation("StudentOf") // rows where this user is the student
@@ -193,6 +198,8 @@ model Course {
   chapters    Chapter[]
   assessments Assessment[]
   assignments Assignment[]
+  doubts      Doubt[]
+  feedback    Feedback[]
   deletedAt   DateTime?
   deletedById String?
   createdAt   DateTime     @default(now())
@@ -226,6 +233,7 @@ model Resource {
   chapterId String
   chapter   Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   progress  ResourceProgress[]
+  comments  Comment[]
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -413,4 +421,72 @@ model AssignmentSubmission {
   @@unique([assignmentId, studentId])
   @@index([assignmentId])
   @@index([studentId])
+}
+
+// ── Q&A / Comments / Feedback (FR-QNA, FR-CMT, FR-FBK) ──────────────
+// A "doubt" is a course-scoped question thread. Access inherits batch
+// isolation through Course → Batch. Teachers of the course + students in
+// the batch can view; teachers can mark resolved / accept a reply.
+model Doubt {
+  id          String       @id @default(cuid())
+  title       String
+  body        String
+  courseId    String
+  course      Course       @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  authorId    String
+  author      User         @relation("DoubtAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  isResolved  Boolean      @default(false)
+  replies     DoubtReply[]
+  deletedAt   DateTime?
+  deletedById String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([courseId])
+  @@index([authorId])
+}
+
+model DoubtReply {
+  id         String    @id @default(cuid())
+  doubtId    String
+  doubt      Doubt     @relation(fields: [doubtId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User      @relation("DoubtReplyAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  body       String
+  isAccepted Boolean   @default(false)
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([doubtId])
+}
+
+// Threaded comments on a content Resource (FR-CMT). Author may be a
+// student (in the batch) or the course teacher.
+model Comment {
+  id         String    @id @default(cuid())
+  resourceId String
+  resource   Resource  @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User      @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  body       String
+  deletedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([resourceId])
+}
+
+// One rating (1–5) + optional review per student per course (FR-FBK).
+model Feedback {
+  id        String   @id @default(cuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  studentId String
+  student   User     @relation("FeedbackAuthor", fields: [studentId], references: [id], onDelete: Cascade)
+  rating    Int // 1..5
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([courseId, studentId])
+  @@index([courseId])
 }

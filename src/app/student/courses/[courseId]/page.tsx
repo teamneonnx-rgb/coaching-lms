@@ -21,6 +21,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { EmptyState } from "@/components/empty-state";
+import { getStudentFeedback } from "@/lib/discussion";
+import { CourseFeedback } from "@/components/discussion/course-feedback";
 
 export const metadata: Metadata = { title: "Course" };
 
@@ -44,7 +46,10 @@ export default async function StudentCoursePage({
   const course = await getCourseForStudent(user.id, courseId, batch.id);
   if (!course) notFound();
 
-  const completed = await getCompletedResourceIds(user.id, batch.id);
+  const [completed, myFeedback] = await Promise.all([
+    getCompletedResourceIds(user.id, batch.id),
+    getStudentFeedback(courseId, user.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-4xl p-4 lg:p-8">
@@ -131,6 +136,14 @@ export default async function StudentCoursePage({
           ))}
         </Accordion>
       )}
+
+      <div className="mt-8">
+        <CourseFeedback
+          courseId={course.id}
+          initialRating={myFeedback?.rating ?? 0}
+          initialComment={myFeedback?.comment ?? ""}
+        />
+      </div>
     </div>
   );
 }

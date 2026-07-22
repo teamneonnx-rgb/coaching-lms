@@ -6,7 +6,9 @@ import { requireRole } from "@/lib/session";
 import { db } from "@/lib/db";
 import { getActiveBatch, getResourceForStudent } from "@/lib/student";
 import { getSignedResourceUrl, isStorageConfigured } from "@/lib/storage";
+import { getResourceComments } from "@/lib/discussion";
 import { MarkCompleteButton } from "@/components/student/mark-complete-button";
+import { ResourceComments } from "@/components/discussion/resource-comments";
 
 export const metadata: Metadata = { title: "Resource" };
 
@@ -29,15 +31,24 @@ export default async function StudentResourcePage({
 
   // A pasted URL (http/https) is used directly; an S3/R2 object key is signed.
   const isUrl = /^https?:\/\//i.test(resource.fileKey);
-  const [signedUrl, progress] = await Promise.all([
+  const [signedUrl, progress, commentRows] = await Promise.all([
     isUrl ? Promise.resolve(resource.fileKey) : getSignedResourceUrl(resource.fileKey), // FR-COURSE-03
     db.resourceProgress.findUnique({
       where: { studentId_resourceId: { studentId: user.id, resourceId: resource.id } },
       select: { id: true },
     }),
+    getResourceComments(resource.id),
   ]);
 
   const completed = Boolean(progress);
+  const comments = commentRows.map((c) => ({
+    id: c.id,
+    authorName: c.author.name ?? "User",
+    authorRole: c.author.role,
+    body: c.body,
+    createdAt: c.createdAt.toISOString(),
+    isMine: c.authorId === user.id,
+  }));
 
   return (
     <div className="mx-auto max-w-4xl p-4 lg:p-8">
@@ -88,6 +99,8 @@ export default async function StudentResourcePage({
           className="h-[75vh] w-full rounded-lg border border-slate-200"
         />
       )}
+
+      <ResourceComments resourceId={resource.id} comments={comments} />
     </div>
   );
 }
