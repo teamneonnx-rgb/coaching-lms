@@ -10,6 +10,7 @@ import {
   BookOpen,
   Upload,
   Trash2,
+  BarChart3,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -23,6 +24,7 @@ const NAV: NavItem[] = [
   { href: "/admin/users", label: "Users", icon: Users },
   { href: "/admin/batches", label: "Batches", icon: Layers },
   { href: "/admin/courses", label: "Courses", icon: BookOpen },
+  { href: "/admin/reports", label: "Reports", icon: BarChart3 },
   { href: "/admin/import", label: "Bulk import", icon: Upload },
   { href: "/admin/control-center", label: "Control Center", icon: SlidersHorizontal },
   { href: "/admin/recycle-bin", label: "Recycle bin", icon: Trash2 },

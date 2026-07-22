@@ -10,6 +10,7 @@ import {
   ClipboardList,
   FileText,
   MessagesSquare,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -24,6 +25,7 @@ const NAV: NavItem[] = [
   { href: "/student/assignments", label: "Assignments", icon: FileText },
   { href: "/student/doubts", label: "Doubts", icon: MessagesSquare },
   { href: "/student/attendance", label: "Attendance", icon: CalendarCheck },
+  { href: "/student/report", label: "My Report", icon: BarChart3 },
 ];
 
 export function StudentSidebar({

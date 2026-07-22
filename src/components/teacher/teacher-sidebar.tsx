@@ -9,6 +9,7 @@ import {
   ClipboardList,
   FileText,
   MessagesSquare,
+  BarChart3,
   BookOpen,
   Layers,
   type LucideIcon,
@@ -26,6 +27,7 @@ const NAV: NavItem[] = [
   { href: "/teacher/assessments", label: "Assessments", icon: ClipboardList },
   { href: "/teacher/assignments", label: "Assignments", icon: FileText },
   { href: "/teacher/doubts", label: "Doubts", icon: MessagesSquare },
+  { href: "/teacher/reports", label: "Reports", icon: BarChart3 },
 ];
 
 export function TeacherSidebar({
