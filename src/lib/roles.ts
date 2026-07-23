@@ -1,12 +1,12 @@
 import type { Role } from "@prisma/client";
 
 // Single source of truth for role → landing route (FR-AUTH-02).
-// SUPER_ADMIN, ADMIN and IT all live in the /admin area (IT is read + limited
-// write, enforced in actions). PARENT gets its own read-only portal.
+// SUPER_ADMIN and ADMIN live in /admin. IT has its own read-only diagnostics
+// shell at /it (FR-IT-06 — no business write access). PARENT gets a portal.
 export const ROLE_HOME: Record<Role, string> = {
   SUPER_ADMIN: "/admin",
   ADMIN: "/admin",
-  IT: "/admin",
+  IT: "/it",
   TEACHER: "/teacher",
   STUDENT: "/student",
   PARENT: "/parent",
@@ -16,14 +16,14 @@ export const ROLE_HOME: Record<Role, string> = {
 export const ROLE_PREFIX: Record<Role, string> = {
   SUPER_ADMIN: "/admin",
   ADMIN: "/admin",
-  IT: "/admin",
+  IT: "/it",
   TEACHER: "/teacher",
   STUDENT: "/student",
   PARENT: "/parent",
 };
 
-// Roles that may enter the /admin area.
-export const ADMIN_AREA_ROLES: Role[] = ["SUPER_ADMIN", "ADMIN", "IT"];
+// Roles that may enter the /admin area. IT is NOT one of them (FR-IT-06).
+export const ADMIN_AREA_ROLES: Role[] = ["SUPER_ADMIN", "ADMIN"];
 
 // Roles with full (delete-capable) admin power. IT is deliberately excluded
 // (FR-ROLE-2: IT cannot delete).

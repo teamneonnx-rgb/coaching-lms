@@ -158,6 +158,38 @@ model ClassSessionSummary {
   @@index([batchId, sessionDate])
 }
 
+// ── Error log / IT diagnostics (FR-IT-01..08, NFR-08) ──────────────
+enum ErrorSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+// Every unhandled server error lands here with role + user context attached
+// (written by the centralised handler in src/instrumentation.ts). Sensitive
+// fields are redacted before insert (FR-IT-07).
+model ErrorLog {
+  id             String        @id @default(cuid())
+  occurredAt     DateTime      @default(now())
+  affectedUserId String?
+  affectedRole   String?
+  screenOrEndpoint String?
+  errorCode      String?
+  errorMessage   String
+  stackTrace     String?
+  requestPayloadRedacted String?
+  severity       ErrorSeverity @default(MEDIUM)
+  resolvedFlag   Boolean       @default(false)
+  resolvedById   String?
+  resolvedAt     DateTime?
+  resolutionNote String?
+
+  @@index([resolvedFlag, occurredAt])
+  @@index([affectedRole])
+  @@index([severity])
+}
+
 // ── Enquiries (FR-AD-25..28) ───────────────────────────────────────
 enum EnquiryStatus {
   NEW

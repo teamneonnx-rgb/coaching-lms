@@ -45,7 +45,8 @@ export const authConfig = {
         pathname.startsWith("/admin") ||
         pathname.startsWith("/teacher") ||
         pathname.startsWith("/student") ||
-        pathname.startsWith("/parent");
+        pathname.startsWith("/parent") ||
+        pathname.startsWith("/it");
 
       // Unauthenticated hitting a protected area → send to /login.
       if (isProtected && !isLoggedIn) return false;
