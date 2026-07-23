@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { Users, CalendarCheck, Award, IndianRupee } from "lucide-react";
 import { requireRole } from "@/lib/session";
+import { db } from "@/lib/db";
 import { getParentChildren } from "@/lib/parent";
 import { getStudentPayments, computeStatus } from "@/lib/payments";
 import { formatDate } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
+import { MonthlyFeedbackForm } from "@/components/parent/monthly-feedback-form";
 
 export const metadata: Metadata = { title: "Parent Portal" };
 
@@ -15,8 +17,41 @@ export default async function ParentDashboard() {
 
   // FR-PA-03: fee status per ward — paid, pending, due dates, history.
   const feesByChild = new Map<string, Awaited<ReturnType<typeof getStudentPayments>>>();
+  // FR-PA-02: published results; FR-PA-05: session summaries (view only);
+  // FR-PA-01: once-per-month feedback flag.
+  const period = new Date().toISOString().slice(0, 7);
+  const resultsByChild = new Map<string, { examName: string; subject: string | null; marksObtained: number; maxMarks: number; grade: string | null }[]>();
+  const summariesByChild = new Map<string, { batchName: string; sessionDate: Date; topicsCovered: string; homework: string | null }[]>();
+  const feedbackDone = new Map<string, boolean>();
   for (const c of children) {
     feesByChild.set(c.id, await getStudentPayments(c.id));
+    resultsByChild.set(
+      c.id,
+      await db.result.findMany({
+        where: { studentId: c.id, publishedAt: { not: null } },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+        select: { examName: true, subject: true, marksObtained: true, maxMarks: true, grade: true },
+      })
+    );
+    summariesByChild.set(
+      c.id,
+      (
+        await db.classSessionSummary.findMany({
+          where: { batch: { enrollments: { some: { studentId: c.id, isActive: true } } } },
+          orderBy: { sessionDate: "desc" },
+          take: 5,
+          include: { batch: { select: { name: true } } },
+        })
+      ).map((s) => ({ batchName: s.batch.name, sessionDate: s.sessionDate, topicsCovered: s.topicsCovered, homework: s.homework }))
+    );
+    feedbackDone.set(
+      c.id,
+      !!(await db.feedback.findFirst({
+        where: { studentId: parent.id, givenByRole: "PARENT", wardId: c.id, period },
+        select: { id: true },
+      }))
+    );
   }
 
   return (
@@ -84,6 +119,42 @@ export default async function ParentDashboard() {
                     </ul>
                   </div>
                 ) : null}
+
+                {/* FR-PA-02: published results */}
+                {(resultsByChild.get(c.id) ?? []).length > 0 ? (
+                  <div>
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">Published results</p>
+                    <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                      {(resultsByChild.get(c.id) ?? []).map((r, i) => (
+                        <li key={i} className="flex items-center justify-between px-3 py-2 text-sm">
+                          <span className="text-slate-700">{r.examName}{r.subject ? ` · ${r.subject}` : ""}</span>
+                          <span className="font-medium text-slate-900">
+                            {r.marksObtained}/{r.maxMarks}{r.grade ? ` (${r.grade})` : ""}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {/* FR-PA-05: per-day class session summaries — view only */}
+                {(summariesByChild.get(c.id) ?? []).length > 0 ? (
+                  <div>
+                    <p className="mb-2 text-xs font-medium text-muted-foreground">Class session summaries</p>
+                    <ul className="space-y-1.5">
+                      {(summariesByChild.get(c.id) ?? []).map((s, i) => (
+                        <li key={i} className="rounded-lg border border-slate-200 px-3 py-2">
+                          <p className="text-xs font-medium text-slate-900">{s.batchName} · {formatDate(s.sessionDate)}</p>
+                          <p className="text-sm text-slate-700">{s.topicsCovered}</p>
+                          {s.homework ? <p className="text-xs text-muted-foreground">Homework: {s.homework}</p> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {/* FR-PA-01: monthly feedback — once per calendar month per ward */}
+                <MonthlyFeedbackForm wardId={c.id} alreadySubmitted={feedbackDone.get(c.id) ?? false} />
 
                 {/* FR-PA-03: ward fee status (read-only) */}
                 {(feesByChild.get(c.id) ?? []).length > 0 ? (

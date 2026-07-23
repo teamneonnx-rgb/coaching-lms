@@ -104,6 +104,44 @@ model Payment {
   @@index([status, dueDate])
 }
 
+// ── Results (FR-AD-52..55, FR-ST-04c, FR-PA-02) ────────────────────
+// Entered by Admin (individually or per-batch sheet); invisible to students
+// and parents until published. Edits after publish are audited + re-notified.
+model Result {
+  id            String    @id @default(cuid())
+  studentId     String
+  student       User      @relation("StudentResults", fields: [studentId], references: [id], onDelete: Cascade)
+  batchId       String?
+  examName      String
+  examDate      DateTime?
+  subject       String?
+  maxMarks      Float
+  marksObtained Float
+  grade         String?
+  publishedAt   DateTime?
+  enteredById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([studentId])
+  @@index([batchId, examName])
+}
+
+// ── Class session summaries (FR-AD-41..43, FR-PA-05) ───────────────
+model ClassSessionSummary {
+  id            String   @id @default(cuid())
+  batchId       String
+  batch         Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  sessionDate   DateTime @db.Date
+  topicsCovered String
+  homework      String?
+  remarks       String?
+  uploadedById  String?
+  publishedAt   DateTime @default(now())
+
+  @@index([batchId, sessionDate])
+}
+
 // ── Enquiries (FR-AD-25..28) ───────────────────────────────────────
 enum EnquiryStatus {
   NEW
@@ -153,6 +191,7 @@ model User {
   admissionDate       DateTime? // students
   ownedBatches        Batch[]   @relation("BatchTeacher")
   payments            Payment[] @relation("StudentPayments")
+  results             Result[]  @relation("StudentResults")
   parentName    String?
   parentPhone   String?
   parentEmail   String?
@@ -290,6 +329,7 @@ model Batch {
   courseLinks CourseBatch[]
   enrollments Enrollment[]
   attendances Attendance[]
+  sessionSummaries ClassSessionSummary[]
   deletedAt   DateTime?
   deletedById String?
   createdAt   DateTime     @default(now())
@@ -381,6 +421,7 @@ model Resource {
   approvalStatus ApprovalStatus @default(APPROVED)
   reviewedById   String?
   reviewedAt     DateTime?
+  rejectionReason String? // FR-AD-38 — shown to the uploading teacher
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
@@ -634,8 +675,13 @@ model Comment {
 // One rating (1–5) + optional review per student per course (FR-FBK).
 model Feedback {
   id        String   @id @default(cuid())
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId  String?
+  course    Course?  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  // FR-PA-01 / PRD Feedback entity: parent monthly feedback + teacher target
+  givenByRole     String  @default("STUDENT") // STUDENT | PARENT
+  targetTeacherId String?
+  wardId          String? // parent feedback is per ward
+  period          String? // "yyyy-MM" — one parent feedback per ward per month
   studentId String
   student   User     @relation("FeedbackAuthor", fields: [studentId], references: [id], onDelete: Cascade)
   rating    Int // 1..5

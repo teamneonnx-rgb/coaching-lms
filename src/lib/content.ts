@@ -19,7 +19,7 @@ export async function getManageableCourse(userId: string, role: Role, courseId: 
         include: {
           resources: {
             orderBy: { order: "asc" },
-            select: { id: true, title: true, type: true, duration: true, approvalStatus: true },
+            select: { id: true, title: true, type: true, duration: true, approvalStatus: true, rejectionReason: true },
           },
         },
       },

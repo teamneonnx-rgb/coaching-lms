@@ -46,7 +46,7 @@ import {
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { EmptyState } from "@/components/empty-state";
 
-type Resource = { id: string; title: string; type: "VIDEO" | "PDF"; duration: number | null; approvalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "AMENDED" };
+type Resource = { id: string; title: string; type: "VIDEO" | "PDF"; duration: number | null; approvalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "AMENDED"; rejectionReason?: string | null };
 type Chapter = { id: string; title: string; resources: Resource[] };
 
 export function CourseContentManager({
@@ -111,7 +111,7 @@ export function CourseContentManager({
                           {r.approvalStatus === "PENDING" ? (
                             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">Pending review</span>
                           ) : r.approvalStatus === "REJECTED" ? (
-                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700">Rejected</span>
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-medium text-red-700" title={r.rejectionReason ?? undefined}>Rejected{r.rejectionReason ? ` — ${r.rejectionReason}` : ""}</span>
                           ) : null}
                           <span className="text-xs text-muted-foreground">{r.type}</span>
                           <ConfirmDeleteDialog
