@@ -29,7 +29,7 @@ export async function askDoubt(values: unknown): Promise<ActionResult> {
 
   // Access: the course must belong to the student's active batch.
   const course = await db.course.findFirst({
-    where: { id: courseId, batchId: batch.id, deletedAt: null },
+    where: { id: courseId, batches: { some: { batchId: batch.id } }, deletedAt: null },
     select: { id: true, title: true, teacherId: true },
   });
   if (!course) return { ok: false, error: "Course not available" };
@@ -67,7 +67,7 @@ export async function replyToDoubt(values: unknown): Promise<ActionResult> {
     where: { id: doubtId, deletedAt: null },
     select: {
       id: true, title: true, authorId: true,
-      course: { select: { teacherId: true, batchId: true, title: true } },
+      course: { select: { teacherId: true, title: true, batches: { select: { batchId: true } } } },
     },
   });
   if (!doubt) return { ok: false, error: "Doubt not found" };
@@ -76,7 +76,7 @@ export async function replyToDoubt(values: unknown): Promise<ActionResult> {
   let allowed = isTeacher || isAdminArea(user.role);
   if (!allowed && user.role === "STUDENT") {
     const batch = await getActiveBatch(user.id);
-    allowed = !!batch && batch.id === doubt.course.batchId;
+    allowed = !!batch && doubt.course.batches.some((b) => b.batchId === batch.id);
   }
   if (!allowed) return { ok: false, error: "You can't reply to this doubt" };
 
@@ -165,7 +165,7 @@ export async function postComment(values: unknown): Promise<ActionResult> {
   // Access: the resource's course teacher, a batch student, or an admin.
   const resource = await db.resource.findUnique({
     where: { id: resourceId },
-    select: { id: true, chapter: { select: { course: { select: { teacherId: true, batchId: true } } } } },
+    select: { id: true, chapter: { select: { course: { select: { teacherId: true, batches: { select: { batchId: true } } } } } } },
   });
   if (!resource) return { ok: false, error: "Resource not found" };
   const course = resource.chapter.course;
@@ -176,7 +176,7 @@ export async function postComment(values: unknown): Promise<ActionResult> {
     const policy = await getAccessPolicy();
     if (!policy.studentComments) return { ok: false, error: "Commenting is disabled" };
     const batch = await getActiveBatch(user.id);
-    allowed = !!batch && batch.id === course.batchId;
+    allowed = !!batch && course.batches.some((b) => b.batchId === batch.id);
   }
   if (!allowed) return { ok: false, error: "You can't comment here" };
 
@@ -217,7 +217,7 @@ export async function submitFeedback(values: unknown): Promise<ActionResult> {
   if (!batch) return { ok: false, error: "You are not in an active batch" };
 
   const course = await db.course.findFirst({
-    where: { id: courseId, batchId: batch.id, deletedAt: null },
+    where: { id: courseId, batches: { some: { batchId: batch.id } }, deletedAt: null },
     select: { id: true },
   });
   if (!course) return { ok: false, error: "Course not available" };

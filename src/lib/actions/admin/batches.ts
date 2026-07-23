@@ -71,6 +71,48 @@ export async function updateBatch(values: unknown): Promise<ActionResult> {
   return { ok: true };
 }
 
+// FR-AD-10/11: assign / reassign the batch's owning teacher (and optional
+// schedule + capacity). Historical attendance keeps markedById and content
+// keeps its authoring teacher — reassignment never rewrites history.
+export async function assignBatchTeacher(values: {
+  batchId: string;
+  teacherId: string;
+  scheduleDays?: string;
+  scheduleTime?: string;
+  capacity?: number;
+}): Promise<ActionResult> {
+  const admin = await requireCapability("BATCH_MANAGE");
+  const { batchId, teacherId } = values;
+  if (!batchId || !teacherId) return { ok: false, error: "Missing batch or teacher" };
+
+  const teacher = await db.user.findFirst({
+    where: { id: teacherId, role: "TEACHER", deletedAt: null },
+    select: { id: true, name: true },
+  });
+  if (!teacher) return { ok: false, error: "Selected teacher is invalid" };
+
+  const before = await db.batch.findUnique({ where: { id: batchId }, select: { teacherId: true } });
+  await db.batch.update({
+    where: { id: batchId },
+    data: {
+      teacherId,
+      scheduleDays: values.scheduleDays?.trim() || undefined,
+      scheduleTime: values.scheduleTime?.trim() || undefined,
+      capacity: values.capacity && values.capacity > 0 ? values.capacity : undefined,
+    },
+  });
+  await logAudit({
+    actorId: admin.id, actorRole: admin.role, action: "batch.assign_teacher",
+    entity: "Batch", entityId: batchId, detail: teacher.name,
+    beforeValue: JSON.stringify({ teacherId: before?.teacherId ?? null }),
+    afterValue: JSON.stringify({ teacherId }),
+  });
+
+  revalidatePath(`/admin/batches/${batchId}`);
+  revalidatePath("/admin/teachers");
+  return { ok: true, info: `Assigned to ${teacher.name}` };
+}
+
 export async function deleteBatch(id: string): Promise<ActionResult> {
   const admin = await requireCapability("BATCH_MANAGE");
   if (!id) return { ok: false, error: "Missing batch id" };
@@ -79,7 +121,7 @@ export async function deleteBatch(id: string): Promise<ActionResult> {
   // only archived. Enforced server-side.
   const [attendanceCount, submissionCount] = await Promise.all([
     db.attendance.count({ where: { batchId: id } }),
-    db.submission.count({ where: { assessment: { course: { batchId: id } } } }),
+    db.submission.count({ where: { assessment: { course: { batches: { some: { batchId: id } } } } } }),
   ]);
   if (attendanceCount > 0 || submissionCount > 0) {
     await db.batch.update({ where: { id }, data: { isActive: false } });

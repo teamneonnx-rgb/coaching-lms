@@ -16,7 +16,7 @@ export async function getActiveBatch(studentId: string) {
 
 export async function getStudentCourses(studentId: string, batchId: string) {
   return db.course.findMany({
-    where: { batchId }, // tenancy filter
+    where: { batches: { some: { batchId } } }, // tenancy filter via CourseBatch
     orderBy: { createdAt: "asc" },
     include: {
       teacher: { select: { name: true } },
@@ -35,7 +35,7 @@ export async function getCourseForStudent(
   batchId: string
 ) {
   return db.course.findFirst({
-    where: { id: courseId, batchId }, // both id AND batchId required
+    where: { id: courseId, batches: { some: { batchId } } }, // id AND batch membership
     include: {
       teacher: { select: { name: true } },
       batch: { select: { id: true, name: true } },
@@ -60,7 +60,7 @@ export async function getResourceForStudent(resourceId: string, batchId: string)
     where: {
       id: resourceId,
       approvalStatus: "APPROVED", // FR-APR: unapproved content is not reachable
-      chapter: { course: { batchId } }, // tenancy filter through relations
+      chapter: { course: { batches: { some: { batchId } } } }, // tenancy filter through relations
     },
     include: {
       chapter: {
@@ -77,9 +77,9 @@ export async function getResourceForStudent(resourceId: string, batchId: string)
 // Progress totals for the "Process vs Done" donut (scoped to active batch).
 export async function getStudentProgress(studentId: string, batchId: string) {
   const [total, done] = await Promise.all([
-    db.resource.count({ where: { approvalStatus: "APPROVED", chapter: { course: { batchId } } } }),
+    db.resource.count({ where: { approvalStatus: "APPROVED", chapter: { course: { batches: { some: { batchId } } } } } }),
     db.resourceProgress.count({
-      where: { studentId, resource: { approvalStatus: "APPROVED", chapter: { course: { batchId } } } },
+      where: { studentId, resource: { approvalStatus: "APPROVED", chapter: { course: { batches: { some: { batchId } } } } } },
     }),
   ]);
   return { total, done, remaining: Math.max(total - done, 0) };
@@ -87,7 +87,7 @@ export async function getStudentProgress(studentId: string, batchId: string) {
 
 export async function getCompletedResourceIds(studentId: string, batchId: string) {
   const rows = await db.resourceProgress.findMany({
-    where: { studentId, resource: { chapter: { course: { batchId } } } },
+    where: { studentId, resource: { chapter: { course: { batches: { some: { batchId } } } } } },
     select: { resourceId: true },
   });
   return new Set(rows.map((r) => r.resourceId));

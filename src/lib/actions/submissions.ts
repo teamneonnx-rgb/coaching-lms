@@ -26,7 +26,7 @@ export async function submitObjective(values: unknown): Promise<ActionResult> {
 
   // Published + objective + in the student's batch (isolation).
   const assessment = await db.assessment.findFirst({
-    where: { id: assessmentId, isPublished: true, type: "OBJECTIVE", course: { batchId: batch.id } },
+    where: { id: assessmentId, isPublished: true, type: "OBJECTIVE", course: { batches: { some: { batchId: batch.id } } } },
     select: {
       negativeMarking: true,
       questions: {
@@ -96,7 +96,7 @@ export async function getSubjectiveUploadUrl(input: {
   }
 
   const assessment = await db.assessment.findFirst({
-    where: { id: input.assessmentId, isPublished: true, type: "SUBJECTIVE", course: { batchId: batch.id } },
+    where: { id: input.assessmentId, isPublished: true, type: "SUBJECTIVE", course: { batches: { some: { batchId: batch.id } } } },
     select: { id: true },
   });
   if (!assessment) return { ok: false, error: "Assessment not available" };
@@ -121,7 +121,7 @@ export async function submitSubjective(values: unknown): Promise<ActionResult> {
   if (!batch) return { ok: false, error: "You are not in an active batch" };
 
   const assessment = await db.assessment.findFirst({
-    where: { id: assessmentId, isPublished: true, type: "SUBJECTIVE", course: { batchId: batch.id } },
+    where: { id: assessmentId, isPublished: true, type: "SUBJECTIVE", course: { batches: { some: { batchId: batch.id } } } },
     select: { id: true },
   });
   if (!assessment) return { ok: false, error: "Assessment not available" };

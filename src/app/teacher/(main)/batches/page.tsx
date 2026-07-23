@@ -21,7 +21,7 @@ export const metadata: Metadata = { title: "My Batches" };
 export default async function TeacherBatchesPage() {
   const teacher = await requireRole("TEACHER");
   const batches = await db.batch.findMany({
-    where: { deletedAt: null, courses: { some: { teacherId: teacher.id, deletedAt: null } } },
+    where: { deletedAt: null, OR: [{ teacherId: teacher.id }, { courseLinks: { some: { course: { teacherId: teacher.id, deletedAt: null } } } }] },
     orderBy: { startDate: "desc" },
     include: { _count: { select: { enrollments: { where: { isActive: true } }, courses: true } } },
   });

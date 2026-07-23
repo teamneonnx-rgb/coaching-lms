@@ -60,7 +60,7 @@ export async function getAssessmentWithSubmissions(assessmentId: string, teacher
 // Published assessments in the student's active batch + their submission status.
 export async function getStudentAssessments(studentId: string, batchId: string) {
   return db.assessment.findMany({
-    where: { isPublished: true, course: { batchId } }, // tenancy filter
+    where: { isPublished: true, course: { batches: { some: { batchId } } } }, // tenancy filter
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -85,7 +85,7 @@ export async function getAssessmentForStudent(
   batchId: string
 ) {
   return db.assessment.findFirst({
-    where: { id: assessmentId, isPublished: true, course: { batchId } },
+    where: { id: assessmentId, isPublished: true, course: { batches: { some: { batchId } } } },
     select: {
       id: true,
       title: true,

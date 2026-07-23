@@ -38,7 +38,7 @@ export default async function StudentDashboard() {
     getStudentProgress(user.id, batch.id),
     getStudentCourses(user.id, batch.id),
     db.resource.findMany({
-      where: { chapter: { course: { batchId: batch.id } } },
+      where: { chapter: { course: { batches: { some: { batchId: batch.id } } } } },
       orderBy: { createdAt: "desc" },
       take: 6,
       select: {

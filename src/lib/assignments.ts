@@ -39,7 +39,7 @@ export async function getTeacherCourseOptions(teacherId: string) {
 // ── Student (batch-isolated) ───────────────────────────────────────
 export async function getStudentAssignments(studentId: string, batchId: string) {
   return db.assignment.findMany({
-    where: { course: { batchId }, deletedAt: null },
+    where: { course: { batches: { some: { batchId } } }, deletedAt: null },
     orderBy: [{ dueDate: "asc" }, { createdAt: "desc" }],
     include: {
       course: { select: { title: true } },
@@ -53,7 +53,7 @@ export async function getStudentAssignments(studentId: string, batchId: string) 
 
 export async function getAssignmentForStudent(id: string, batchId: string) {
   return db.assignment.findFirst({
-    where: { id, course: { batchId }, deletedAt: null },
+    where: { id, course: { batches: { some: { batchId } } }, deletedAt: null },
     include: { course: { select: { title: true } } },
   });
 }

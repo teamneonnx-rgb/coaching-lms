@@ -76,7 +76,7 @@ export async function getBatchBreakdown() {
       const [attRows, subs] = await Promise.all([
         db.attendance.groupBy({ by: ["status"], where: { batchId: b.id, approvalStatus: { in: ["APPROVED", "AMENDED"] } }, _count: { _all: true } }),
         db.submission.findMany({
-          where: { status: "GRADED", assessment: { course: { batchId: b.id } } },
+          where: { status: "GRADED", assessment: { course: { batches: { some: { batchId: b.id } } } } },
           select: { score: true, maxScore: true },
         }),
       ]);
@@ -100,7 +100,7 @@ export async function getBatchBreakdown() {
 // For each batch the teacher teaches, a roster with per-student metrics.
 export async function getTeacherClassReport(teacherId: string) {
   const batches = await db.batch.findMany({
-    where: { deletedAt: null, courses: { some: { teacherId, deletedAt: null } } },
+    where: { deletedAt: null, OR: [{ teacherId }, { courseLinks: { some: { course: { teacherId, deletedAt: null } } } }] },
     orderBy: { name: "asc" },
     select: {
       id: true,
@@ -122,11 +122,11 @@ export async function getTeacherClassReport(teacherId: string) {
           _count: { _all: true },
         }),
         db.submission.findMany({
-          where: { status: "GRADED", studentId: { in: studentIds }, assessment: { course: { batchId: b.id } } },
+          where: { status: "GRADED", studentId: { in: studentIds }, assessment: { course: { batches: { some: { batchId: b.id } } } } },
           select: { studentId: true, score: true, maxScore: true },
         }),
         db.assignmentSubmission.findMany({
-          where: { status: "GRADED", studentId: { in: studentIds }, assignment: { course: { batchId: b.id } } },
+          where: { status: "GRADED", studentId: { in: studentIds }, assignment: { course: { batches: { some: { batchId: b.id } } } } },
           select: { studentId: true, score: true, assignment: { select: { totalMarks: true } } },
         }),
       ]);
@@ -157,14 +157,14 @@ export async function getTeacherClassReport(teacherId: string) {
 export async function getStudentReport(studentId: string, batchId: string) {
   const [attRows, totalResources, completed, assessSubs, assignSubs] = await Promise.all([
     db.attendance.groupBy({ by: ["status"], where: { userId: studentId, batchId, approvalStatus: { in: ["APPROVED", "AMENDED"] } }, _count: { _all: true } }),
-    db.resource.count({ where: { approvalStatus: "APPROVED", chapter: { course: { batchId, deletedAt: null } } } }),
-    db.resourceProgress.count({ where: { studentId, resource: { approvalStatus: "APPROVED", chapter: { course: { batchId, deletedAt: null } } } } }),
+    db.resource.count({ where: { approvalStatus: "APPROVED", chapter: { course: { batches: { some: { batchId } }, deletedAt: null } } } }),
+    db.resourceProgress.count({ where: { studentId, resource: { approvalStatus: "APPROVED", chapter: { course: { batches: { some: { batchId } }, deletedAt: null } } } } }),
     db.submission.findMany({
-      where: { status: "GRADED", studentId, assessment: { course: { batchId } } },
+      where: { status: "GRADED", studentId, assessment: { course: { batches: { some: { batchId } } } } },
       select: { score: true, maxScore: true, assessment: { select: { title: true } } },
     }),
     db.assignmentSubmission.findMany({
-      where: { status: "GRADED", studentId, assignment: { course: { batchId } } },
+      where: { status: "GRADED", studentId, assignment: { course: { batches: { some: { batchId } } } } },
       select: { score: true, assignment: { select: { title: true, totalMarks: true } } },
     }),
   ]);

@@ -77,6 +77,16 @@ model User {
   lockedUntil         DateTime?
   lastLoginAt         DateTime?
   createdById         String?
+  // Profile fields (PRD Teacher/Student entities, kept 1:1 on User)
+  photoUrl            String?
+  subjectSpecialisation String? // teachers
+  qualification       String? // teachers
+  employeeCode        String? // teachers
+  joiningDate         DateTime? // teachers
+  enrolmentNo         String? // students
+  classOrStandard     String? // students
+  admissionDate       DateTime? // students
+  ownedBatches        Batch[]   @relation("BatchTeacher")
   parentName    String?
   parentPhone   String?
   parentEmail   String?
@@ -192,6 +202,8 @@ model AdminCapability {
   @@index([adminUserId])
 }
 
+// PRD §4.2: each batch has EXACTLY ONE owning teacher; batch names are unique
+// across the institute; only Admin creates batches. isActive=false = archived.
 model Batch {
   id          String       @id @default(cuid())
   name        String       @unique
@@ -199,9 +211,17 @@ model Batch {
   startDate   DateTime     @default(now())
   endDate     DateTime?
   isActive    Boolean      @default(true)
+  // Owning teacher (FR-AD-10/11). Reassignment does NOT rewrite history —
+  // attendance keeps markedById and content keeps its authoring teacherId.
+  teacherId   String?
+  teacher     User?        @relation("BatchTeacher", fields: [teacherId], references: [id])
+  scheduleDays String? // e.g. "Mon,Wed,Fri"
+  scheduleTime String? // e.g. "07:00-09:00"
+  capacity     Int?
   instituteId String?
   institute   Institute?   @relation(fields: [instituteId], references: [id])
   courses     Course[]
+  courseLinks CourseBatch[]
   enrollments Enrollment[]
   attendances Attendance[]
   deletedAt   DateTime?
@@ -210,6 +230,21 @@ model Batch {
   updatedAt   DateTime     @updatedAt
 
   @@index([instituteId])
+  @@index([teacherId])
+}
+
+// One course can be delivered across several batches (user decision on PRD
+// open item 8). Course.batchId remains as the PRIMARY batch (legacy column,
+// kept for reversibility); this join is the source of truth for delivery.
+model CourseBatch {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  batchId  String
+  batch    Batch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, batchId])
+  @@index([batchId])
 }
 
 // Students are grouped into Batches (PRD Module B). isActive marks the
@@ -231,8 +266,10 @@ model Course {
   id          String    @id @default(cuid())
   title       String
   description String?
+  subject     String?
   batchId     String
   batch       Batch        @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batches     CourseBatch[] // delivery batches (superset incl. the primary)
   teacherId   String
   teacher     User         @relation(fields: [teacherId], references: [id])
   chapters    Chapter[]

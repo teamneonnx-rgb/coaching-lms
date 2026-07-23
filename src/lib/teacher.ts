@@ -2,26 +2,31 @@ import "server-only";
 import type { AttendanceStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 
-// Batches a teacher is responsible for (those containing at least one of their
-// courses). Teachers can only mark attendance for these (authorization).
+// Batches a teacher is responsible for: batches they OWN (Batch.teacherId,
+// PRD §4.2) plus batches any of their courses is delivered to. FR-TE-06 —
+// no other batch is visible or reachable.
+const teacherBatchWhere = (teacherId: string) => ({
+  deletedAt: null,
+  OR: [
+    { teacherId },
+    { courseLinks: { some: { course: { teacherId, deletedAt: null } } } },
+  ],
+});
+
 export async function getTeacherBatches(teacherId: string) {
-  const courses = await db.course.findMany({
-    where: { teacherId },
-    select: { batch: { select: { id: true, name: true, isActive: true } } },
-    orderBy: { batch: { name: "asc" } },
+  return db.batch.findMany({
+    where: teacherBatchWhere(teacherId),
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, isActive: true },
   });
-  // A teacher may have several courses in one batch — dedupe to unique batches.
-  const seen = new Map<string, { id: string; name: string; isActive: boolean }>();
-  for (const c of courses) seen.set(c.batch.id, c.batch);
-  return [...seen.values()];
 }
 
 export async function teacherOwnsBatch(teacherId: string, batchId: string): Promise<boolean> {
-  const course = await db.course.findFirst({
-    where: { teacherId, batchId },
+  const batch = await db.batch.findFirst({
+    where: { id: batchId, ...teacherBatchWhere(teacherId) },
     select: { id: true },
   });
-  return Boolean(course);
+  return Boolean(batch);
 }
 
 // Roster for a batch on a date: enrolled students + their attendance status.

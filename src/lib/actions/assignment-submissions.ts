@@ -27,7 +27,7 @@ export async function submitAssignment(values: unknown): Promise<ActionResult> {
   if (!batch) return { ok: false, error: "You are not in an active batch" };
 
   const assignment = await db.assignment.findFirst({
-    where: { id: assignmentId, course: { batchId: batch.id }, deletedAt: null },
+    where: { id: assignmentId, course: { batches: { some: { batchId: batch.id } } }, deletedAt: null },
     select: { id: true, dueDate: true, allowLate: true },
   });
   if (!assignment) return { ok: false, error: "Assignment not available" };
@@ -59,7 +59,7 @@ export async function getAssignmentUploadUrl(input: {
   if (!batch) return { ok: false, error: "You are not in an active batch" };
 
   const assignment = await db.assignment.findFirst({
-    where: { id: input.assignmentId, course: { batchId: batch.id }, deletedAt: null },
+    where: { id: input.assignmentId, course: { batches: { some: { batchId: batch.id } } }, deletedAt: null },
     select: { id: true },
   });
   if (!assignment) return { ok: false, error: "Assignment not available" };

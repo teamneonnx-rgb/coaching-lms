@@ -29,14 +29,17 @@ export async function createCourse(values: unknown): Promise<ActionResult> {
   const refError = await validateRefs(data.batchId, data.teacherId);
   if (refError) return { ok: false, error: refError };
 
-  await db.course.create({
+  const created = await db.course.create({
     data: {
       title: data.title,
       description: data.description || null,
       batchId: data.batchId,
       teacherId: data.teacherId,
     },
+    select: { id: true },
   });
+  // CourseBatch is the delivery source of truth (one course, many batches).
+  await db.courseBatch.create({ data: { courseId: created.id, batchId: data.batchId } });
 
   revalidatePath("/admin/courses");
   revalidatePath("/admin");
@@ -61,6 +64,12 @@ export async function updateCourse(values: unknown): Promise<ActionResult> {
       batchId: data.batchId,
       teacherId: data.teacherId,
     },
+  });
+  // Keep the delivery join in sync with the primary batch (idempotent).
+  await db.courseBatch.upsert({
+    where: { courseId_batchId: { courseId: data.id, batchId: data.batchId } },
+    update: {},
+    create: { courseId: data.id, batchId: data.batchId },
   });
 
   revalidatePath("/admin/courses");

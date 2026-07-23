@@ -33,7 +33,8 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/users", label: "Users", icon: Users, needs: ["TEACHER_MANAGE", "STUDENT_MANAGE", "TEACHER_VIEW", "PASSWORD_RESET"] },
+  { href: "/admin/users", label: "Users", icon: Users, needs: ["TEACHER_MANAGE", "STUDENT_MANAGE", "PASSWORD_RESET"] },
+  { href: "/admin/teachers", label: "Teachers", icon: GraduationCap, needs: ["TEACHER_VIEW"] },
   { href: "/admin/batches", label: "Batches", icon: Layers, needs: ["BATCH_MANAGE", "TEACHER_VIEW"] },
   { href: "/admin/attendance", label: "Attendance", icon: CalendarCheck, needs: ["TEACHER_ATTENDANCE", "STUDENT_ATTENDANCE_APPROVE"] },
   { href: "/admin/courses", label: "Courses", icon: BookOpen, needs: ["COURSE_MANAGE"] },

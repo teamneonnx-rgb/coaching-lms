@@ -37,7 +37,7 @@ export async function getStudentDoubts(batchId: string, studentId: string) {
   const policy = await getAccessPolicy();
   return db.doubt.findMany({
     where: {
-      course: { batchId },
+      course: { batches: { some: { batchId } } },
       deletedAt: null,
       ...(policy.publicDoubts ? {} : { authorId: studentId }),
     },
@@ -55,7 +55,7 @@ export async function getDoubtForStudent(id: string, batchId: string, studentId:
   return db.doubt.findFirst({
     where: {
       id,
-      course: { batchId },
+      course: { batches: { some: { batchId } } },
       deletedAt: null,
       ...(policy.publicDoubts ? {} : { authorId: studentId }),
     },
@@ -74,7 +74,7 @@ export async function getDoubtForStudent(id: string, batchId: string, studentId:
 // Courses in a batch — for the student "ask a doubt" course picker.
 export async function getBatchCourseOptions(batchId: string) {
   return db.course.findMany({
-    where: { batchId, deletedAt: null },
+    where: { batches: { some: { batchId } }, deletedAt: null },
     orderBy: { title: "asc" },
     select: { id: true, title: true },
   });
