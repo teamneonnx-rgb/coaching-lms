@@ -16,6 +16,7 @@ import {
   BookOpenCheck,
   BarChart3,
   BadgeCheck,
+  Search,
   ShieldCheck,
   CalendarCheck,
   SlidersHorizontal,
@@ -51,6 +52,7 @@ const NAV: NavItem[] = [
   { href: "/admin/import", label: "Bulk import", icon: Upload, needs: ["STUDENT_BULK_IMPORT"] },
   { href: "/admin/control-center", label: "Control Center", icon: SlidersHorizontal, superAdminOnly: true },
   { href: "/admin/access-control", label: "Access Control", icon: ShieldCheck, superAdminOnly: true },
+  { href: "/admin/search", label: "Search", icon: Search },
   { href: "/admin/recycle-bin", label: "Recycle bin", icon: Trash2, needs: ["TEACHER_MANAGE", "STUDENT_MANAGE"] },
 ];
 

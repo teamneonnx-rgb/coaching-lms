@@ -13,6 +13,7 @@ import {
   BarChart3,
   IndianRupee,
   Award,
+  Search,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,7 @@ const NAV: NavItem[] = [
   { href: "/student/results", label: "Results", icon: Award },
   { href: "/student/report", label: "My Report", icon: BarChart3 },
   { href: "/student/fees", label: "Fees", icon: IndianRupee },
+  { href: "/student/search", label: "Search", icon: Search },
 ];
 
 export function StudentSidebar({

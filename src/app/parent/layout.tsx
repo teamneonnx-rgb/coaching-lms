@@ -1,4 +1,5 @@
-import { GraduationCap } from "lucide-react";
+import Link from "next/link";
+import { GraduationCap, Search } from "lucide-react";
 import { requireRole, enforcePasswordRotation } from "@/lib/session";
 import { LogoutButton } from "@/components/logout-button";
 import { NotificationBell } from "@/components/admin/notification-bell";
@@ -24,6 +25,10 @@ export default async function ParentLayout({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/parent" className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">Home</Link>
+          <Link href="/parent/search" className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            <Search className="size-4" /> Search
+          </Link>
           <NotificationBell />
           <LogoutButton />
         </div>

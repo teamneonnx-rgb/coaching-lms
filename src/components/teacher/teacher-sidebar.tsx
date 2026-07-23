@@ -10,6 +10,7 @@ import {
   FileText,
   MessagesSquare,
   ClipboardCheck,
+  Search,
   BarChart3,
   BookOpen,
   Layers,
@@ -30,6 +31,7 @@ const NAV: NavItem[] = [
   { href: "/teacher/doubts", label: "Doubts", icon: MessagesSquare },
   { href: "/teacher/evaluations", label: "Evaluations", icon: ClipboardCheck },
   { href: "/teacher/reports", label: "Reports", icon: BarChart3 },
+  { href: "/teacher/search", label: "Search", icon: Search },
 ];
 
 export function TeacherSidebar({
