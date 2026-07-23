@@ -228,6 +228,9 @@ model User {
   lockedUntil         DateTime?
   lastLoginAt         DateTime?
   createdById         String?
+  // Self-service password reset (FR-AU-03) — token is stored hashed.
+  resetTokenHash      String?
+  resetTokenExpiry    DateTime?
   // Profile fields (PRD Teacher/Student entities, kept 1:1 on User)
   photoUrl            String?
   subjectSpecialisation String? // teachers
