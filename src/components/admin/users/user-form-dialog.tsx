@@ -55,7 +55,7 @@ function makeSchema(mode: "create" | "edit") {
         mode === "create"
           ? z.string().min(8, "Password must be at least 8 characters").max(72)
           : z.string().max(72).optional().or(z.literal("")),
-      role: z.enum(["SUPER_ADMIN", "ADMIN", "IT", "TEACHER", "STUDENT", "PARENT"]),
+      role: z.enum(["ADMIN", "IT", "TEACHER", "STUDENT", "PARENT"]),
       parentName: z.string().trim().max(100).optional().or(z.literal("")),
       parentPhone: z.string().trim().max(20).optional().or(z.literal("")),
       parentEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),
@@ -88,7 +88,9 @@ export function UserFormDialog({
       name: user?.name ?? "",
       email: user?.email ?? "",
       password: "",
-      role: user?.role ?? "STUDENT",
+      // SUPER_ADMIN is never form-assignable (FR-SA-00) — an SA row can't be
+      // edited here, so fall back safely for the type-narrowed enum.
+      role: user?.role === "SUPER_ADMIN" ? "ADMIN" : (user?.role ?? "STUDENT"),
       parentName: user?.parentName ?? "",
       parentPhone: user?.parentPhone ?? "",
       parentEmail: user?.parentEmail ?? "",
@@ -194,7 +196,6 @@ export function UserFormDialog({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="SUPER_ADMIN">Super Admin</SelectItem>
                         <SelectItem value="ADMIN">Admin</SelectItem>
                         <SelectItem value="IT">IT</SelectItem>
                         <SelectItem value="TEACHER">Teacher</SelectItem>

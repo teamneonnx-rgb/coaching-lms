@@ -1,5 +1,5 @@
 import { GraduationCap } from "lucide-react";
-import { requireRole } from "@/lib/session";
+import { requireRole, enforcePasswordRotation } from "@/lib/session";
 import { LogoutButton } from "@/components/logout-button";
 import { NotificationBell } from "@/components/admin/notification-bell";
 
@@ -9,6 +9,7 @@ export default async function ParentLayout({
   children: React.ReactNode;
 }) {
   const user = await requireRole("PARENT");
+  await enforcePasswordRotation(user.id); // FR-AU-02
 
   return (
     <div className="flex min-h-screen flex-col bg-slate-50">

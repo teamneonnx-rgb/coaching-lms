@@ -23,3 +23,15 @@ export async function requireAdminArea() {
   if (!isAdminArea(user.role)) redirect(homeForRole(user.role));
   return user;
 }
+
+// FR-AU-02: accounts created by an admin must change their password on first
+// login. Called from every role shell layout; sends the user to the rotation
+// screen until the flag clears.
+export async function enforcePasswordRotation(userId: string) {
+  const { db } = await import("@/lib/db");
+  const row = await db.user.findUnique({
+    where: { id: userId },
+    select: { mustChangePassword: true },
+  });
+  if (row?.mustChangePassword) redirect("/change-password");
+}

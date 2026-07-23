@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { CheckCircle2, PlayCircle, FileText } from "lucide-react";
 import { requireAdminArea } from "@/lib/session";
-import { isFullAdmin } from "@/lib/roles";
+import { hasCapability } from "@/lib/capabilities";
 import { getPendingResources } from "@/lib/approvals";
 import { formatDate } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,7 +12,7 @@ export const metadata: Metadata = { title: "Approvals" };
 
 export default async function AdminApprovalsPage() {
   const user = await requireAdminArea();
-  const canReview = isFullAdmin(user.role);
+  const canReview = await hasCapability(user, "DOCUMENT_APPROVE");
   const pending = await getPendingResources();
 
   return (

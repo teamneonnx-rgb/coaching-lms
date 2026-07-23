@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { assertCanDelete } from "@/lib/actions/admin/guard";
+import { requireCapability } from "@/lib/capabilities";
 import { notifyBatchStudents, notifyUser } from "@/lib/notifications/events";
 import { logAudit } from "@/lib/audit";
 
@@ -23,7 +23,7 @@ async function loadPending(resourceId: string) {
 // Approve teacher-submitted content → visible to students, teacher notified,
 // batch students notified it was published (FR-APR).
 export async function approveResource(resourceId: string): Promise<ActionResult> {
-  const admin = await assertCanDelete();
+  const admin = await requireCapability("DOCUMENT_APPROVE");
   const resource = await loadPending(resourceId);
   if (!resource) return { ok: false, error: "Not found or already reviewed" };
 
@@ -53,7 +53,7 @@ export async function approveResource(resourceId: string): Promise<ActionResult>
 
 // Reject content → stays hidden from students; teacher notified so they can fix/remove.
 export async function rejectResource(resourceId: string): Promise<ActionResult> {
-  const admin = await assertCanDelete();
+  const admin = await requireCapability("DOCUMENT_APPROVE");
   const resource = await loadPending(resourceId);
   if (!resource) return { ok: false, error: "Not found or already reviewed" };
 

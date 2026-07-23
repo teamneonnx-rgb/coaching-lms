@@ -84,3 +84,39 @@ export async function registerAction(values: unknown): Promise<ActionState> {
 export async function logoutAction() {
   await signOut({ redirectTo: "/login" });
 }
+
+// FR-AU-02: self-service password rotation (also used for the forced change on
+// first login). Verifies the current password before accepting the new one.
+export async function changePasswordAction(values: {
+  currentPassword: string;
+  newPassword: string;
+}): Promise<ActionState & { ok?: boolean }> {
+  const { auth } = await import("@/auth");
+  const session = await auth();
+  if (!session?.user) return { error: "Not signed in" };
+
+  if (!values.newPassword || values.newPassword.length < 8 || values.newPassword.length > 72) {
+    return { error: "New password must be 8–72 characters" };
+  }
+
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, password: true },
+  });
+  if (!user) return { error: "Account not found" };
+
+  const valid = await bcrypt.compare(values.currentPassword, user.password);
+  if (!valid) return { error: "Current password is incorrect" };
+
+  await db.user.update({
+    where: { id: user.id },
+    data: {
+      password: await bcrypt.hash(values.newPassword, BCRYPT_ROUNDS),
+      mustChangePassword: false,
+      failedLoginAttempts: 0,
+      lockedUntil: null,
+    },
+  });
+
+  return { ok: true };
+}

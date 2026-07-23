@@ -3,19 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { assertAdmin, assertCanDelete } from "@/lib/actions/admin/guard";
-import { requireUser } from "@/lib/session";
+import { requireCapability } from "@/lib/capabilities";
 import { logAudit } from "@/lib/audit";
 import { batchSchema, updateBatchSchema } from "@/lib/validations/admin";
 
-export type ActionResult = { ok: boolean; error?: string };
+export type ActionResult = { ok: boolean; error?: string; info?: string };
 
-// FR-BAT-1 / FR-ROLE-3: both ADMIN and TEACHER can create batches.
+// FR-AD-10 / PRD §4.2: batches are created by Admin only (BATCH_MANAGE
+// capability; Super Admin always). The former teacher create-path is removed.
 export async function createBatch(values: unknown): Promise<ActionResult> {
-  const user = await requireUser();
-  if (user.role !== "ADMIN" && user.role !== "TEACHER") {
-    return { ok: false, error: "Not authorized" };
-  }
+  await requireCapability("BATCH_MANAGE");
 
   const parsed = batchSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
@@ -45,7 +42,7 @@ export async function createBatch(values: unknown): Promise<ActionResult> {
 }
 
 export async function updateBatch(values: unknown): Promise<ActionResult> {
-  await assertAdmin();
+  await requireCapability("BATCH_MANAGE");
 
   const parsed = updateBatchSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
@@ -75,8 +72,21 @@ export async function updateBatch(values: unknown): Promise<ActionResult> {
 }
 
 export async function deleteBatch(id: string): Promise<ActionResult> {
-  const admin = await assertCanDelete(); // IT cannot delete (FR-ROLE-2)
+  const admin = await requireCapability("BATCH_MANAGE");
   if (!id) return { ok: false, error: "Missing batch id" };
+
+  // FR-AD-13: a batch with attendance or result records cannot be deleted —
+  // only archived. Enforced server-side.
+  const [attendanceCount, submissionCount] = await Promise.all([
+    db.attendance.count({ where: { batchId: id } }),
+    db.submission.count({ where: { assessment: { course: { batchId: id } } } }),
+  ]);
+  if (attendanceCount > 0 || submissionCount > 0) {
+    await db.batch.update({ where: { id }, data: { isActive: false } });
+    await logAudit({ actorId: admin.id, actorRole: admin.role, action: "batch.archive", entity: "Batch", entityId: id, detail: "delete blocked — has attendance/result records" });
+    revalidatePath("/admin/batches");
+    return { ok: true, info: "Batch has attendance/result records — archived instead of deleted" };
+  }
 
   // Cascades to enrollments, courses, chapters, resources (schema onDelete).
   await db.batch.delete({ where: { id } });

@@ -1,5 +1,8 @@
 import { z } from "zod";
-import { roleEnum } from "@/lib/validations/auth";
+
+// FR-SA-00: SUPER_ADMIN is a singleton and can never be assigned via a form —
+// the role is transfer-only. Admin CRUD may only mint these roles.
+export const assignableRoleEnum = z.enum(["ADMIN", "IT", "TEACHER", "STUDENT", "PARENT"]);
 
 // ── Users (Admin CRUD) ─────────────────────────────────────────────
 export const adminCreateUserSchema = z.object({
@@ -9,7 +12,7 @@ export const adminCreateUserSchema = z.object({
     .string()
     .min(8, "Password must be at least 8 characters")
     .max(72, "Password must be at most 72 characters"),
-  role: roleEnum,
+  role: assignableRoleEnum,
   parentName: z.string().trim().max(100).optional().or(z.literal("")),
   parentPhone: z.string().trim().max(20).optional().or(z.literal("")),
   parentEmail: z.string().trim().email("Enter a valid email").optional().or(z.literal("")),

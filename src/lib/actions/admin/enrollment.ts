@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { assertAdmin } from "@/lib/actions/admin/guard";
+import { requireCapability } from "@/lib/capabilities";
 import { sendWelcomeEmail } from "@/lib/notifications/events";
 
 export type ActionResult = { ok: boolean; error?: string; info?: string };
@@ -17,7 +17,7 @@ export async function enrollStudents(values: {
   batchId: string;
   studentIds: string[];
 }): Promise<ActionResult> {
-  await assertAdmin();
+  await requireCapability("STUDENT_MANAGE");
   const schema = z.object({ batchId: z.string().min(1), studentIds: z.array(z.string().min(1)) });
   const parsed = schema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
@@ -47,7 +47,7 @@ export async function unenrollStudent(values: {
   batchId: string;
   studentId: string;
 }): Promise<ActionResult> {
-  await assertAdmin();
+  await requireCapability("STUDENT_MANAGE");
   const schema = z.object({ batchId: z.string().min(1), studentId: z.string().min(1) });
   const parsed = schema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
@@ -101,7 +101,7 @@ export async function bulkImportStudents(input: {
   csv: string;
   batchId?: string;
 }): Promise<ImportResult> {
-  await assertAdmin();
+  await requireCapability("STUDENT_BULK_IMPORT");
 
   const rows = parseCsv(input.csv);
   if (rows.length === 0) return { ok: false, error: "No data rows found (need a header row + at least one row)" };
@@ -138,6 +138,7 @@ export async function bulkImportStudents(input: {
         email,
         password: await bcrypt.hash(pw, BCRYPT_ROUNDS),
         role: "STUDENT",
+        mustChangePassword: true, // FR-AU-02
         parentName: data.parentName || null,
         parentPhone: data.parentPhone || null,
         parentEmail: data.parentEmail || null,

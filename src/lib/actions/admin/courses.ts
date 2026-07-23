@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { assertAdmin, assertCanDelete } from "@/lib/actions/admin/guard";
+import { requireCapability } from "@/lib/capabilities";
 import { logAudit } from "@/lib/audit";
 import { courseSchema, updateCourseSchema } from "@/lib/validations/admin";
 
@@ -20,7 +20,7 @@ async function validateRefs(batchId: string, teacherId: string): Promise<string 
 }
 
 export async function createCourse(values: unknown): Promise<ActionResult> {
-  await assertAdmin();
+  await requireCapability("COURSE_MANAGE");
 
   const parsed = courseSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
@@ -44,7 +44,7 @@ export async function createCourse(values: unknown): Promise<ActionResult> {
 }
 
 export async function updateCourse(values: unknown): Promise<ActionResult> {
-  await assertAdmin();
+  await requireCapability("COURSE_MANAGE");
 
   const parsed = updateCourseSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
@@ -69,7 +69,7 @@ export async function updateCourse(values: unknown): Promise<ActionResult> {
 }
 
 export async function deleteCourse(id: string): Promise<ActionResult> {
-  const admin = await assertCanDelete(); // IT cannot delete (FR-ROLE-2)
+  const admin = await requireCapability("COURSE_MANAGE");
   if (!id) return { ok: false, error: "Missing course id" };
 
   // Cascades to chapters and resources (schema onDelete).

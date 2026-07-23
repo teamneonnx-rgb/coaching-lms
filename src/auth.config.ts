@@ -9,7 +9,12 @@ export const authConfig = {
   pages: {
     signIn: "/login",
   },
-  session: { strategy: "jwt" },
+  // FR-AU-04: configurable idle session expiry (minutes; default 12h).
+  session: {
+    strategy: "jwt",
+    maxAge: Number(process.env.SESSION_IDLE_MINUTES ?? 720) * 60,
+    updateAge: 5 * 60, // sliding window — activity extends the session
+  },
   trustHost: true,
   providers: [], // populated in auth.ts
   callbacks: {

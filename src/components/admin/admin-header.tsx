@@ -11,8 +11,12 @@ import { NotificationBell } from "@/components/admin/notification-bell";
 // left, the SWR-polling notification bell on the right (all sizes).
 export function AdminHeader({
   user,
+  role,
+  capabilities = [],
 }: {
   user: { name?: string | null; email?: string | null };
+  role?: string;
+  capabilities?: import("@/lib/capabilities-shared").CapabilityKey[];
 }) {
   const [open, setOpen] = useState(false);
 
@@ -27,7 +31,7 @@ export function AdminHeader({
           </SheetTrigger>
           <SheetContent side="left" className="w-64 border-0 p-0">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
-            <AdminSidebar user={user} onNavigate={() => setOpen(false)} />
+            <AdminSidebar user={user} role={role} capabilities={capabilities} onNavigate={() => setOpen(false)} />
           </SheetContent>
         </Sheet>
         <div className="flex items-center gap-2 lg:hidden">

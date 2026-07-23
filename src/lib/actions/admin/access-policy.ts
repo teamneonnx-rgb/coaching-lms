@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { assertCanDelete } from "@/lib/actions/admin/guard";
+import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
 import { DEFAULT_INSTITUTE_ID } from "@/lib/settings";
 import { POLICY_KEYS, type AccessPolicy } from "@/lib/access-policy";
@@ -16,9 +16,10 @@ const schema = z.object({
   studentComments: z.boolean(),
 });
 
-// Only full admins (SUPER_ADMIN / ADMIN) may change access policy — IT cannot.
+// PRD "Global settings": only the Super Admin may change institute policies.
 export async function saveAccessPolicy(input: unknown): Promise<ActionResult> {
-  const admin = await assertCanDelete();
+  const admin = await requireUser();
+  if (admin.role !== "SUPER_ADMIN") return { ok: false, error: "Only the Super Admin can change access policies" };
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const values = parsed.data;

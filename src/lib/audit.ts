@@ -10,6 +10,9 @@ export async function logAudit(input: {
   entity: string; // e.g. "User"
   entityId?: string | null;
   detail?: string | null;
+  beforeValue?: string | null; // JSON snapshot (FR-AT-01)
+  afterValue?: string | null;
+  ip?: string | null;
 }): Promise<void> {
   try {
     await db.auditEntry.create({
@@ -20,6 +23,9 @@ export async function logAudit(input: {
         entity: input.entity,
         entityId: input.entityId ?? null,
         detail: input.detail ?? null,
+        beforeValue: input.beforeValue ?? null,
+        afterValue: input.afterValue ?? null,
+        ip: input.ip ?? null,
       },
     });
   } catch (err) {

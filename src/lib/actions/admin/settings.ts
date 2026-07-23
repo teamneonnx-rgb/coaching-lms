@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { assertAdmin } from "@/lib/actions/admin/guard";
+import { requireUser } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
 import { DEFAULT_INSTITUTE_ID } from "@/lib/settings";
 
@@ -36,7 +36,9 @@ const schema = z.object({
 });
 
 export async function saveSettings(input: unknown): Promise<ActionResult> {
-  const admin = await assertAdmin();
+  // PRD screen inventory: "Global settings" belongs to Super Admin only.
+  const admin = await requireUser();
+  if (admin.role !== "SUPER_ADMIN") return { ok: false, error: "Only the Super Admin can change integration settings" };
   const parsed = schema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { section, values } = parsed.data;

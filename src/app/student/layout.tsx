@@ -1,4 +1,4 @@
-import { requireRole } from "@/lib/session";
+import { requireRole, enforcePasswordRotation } from "@/lib/session";
 import { StudentSidebar } from "@/components/student/student-sidebar";
 import { StudentTopbar } from "@/components/student/student-topbar";
 
@@ -8,6 +8,7 @@ export default async function StudentLayout({
   children: React.ReactNode;
 }) {
   const user = await requireRole("STUDENT");
+  await enforcePasswordRotation(user.id); // FR-AU-02
   const navUser = { name: user.name, email: user.email };
 
   return (

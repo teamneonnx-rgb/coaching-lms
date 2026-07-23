@@ -12,36 +12,36 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
-import { BatchFormDialog } from "@/components/admin/batches/batch-form-dialog";
 
-export const metadata: Metadata = { title: "Batches" };
+export const metadata: Metadata = { title: "My Batches" };
 
+// FR-TE-06: a teacher sees ONLY the batches assigned to them (scoped in the
+// query). FR-TE-15 / FR-AD-10: teachers cannot create batches — the create
+// dialog was removed; batches are provisioned by Admin.
 export default async function TeacherBatchesPage() {
-  await requireRole("TEACHER");
+  const teacher = await requireRole("TEACHER");
   const batches = await db.batch.findMany({
+    where: { deletedAt: null, courses: { some: { teacherId: teacher.id, deletedAt: null } } },
     orderBy: { startDate: "desc" },
-    include: { _count: { select: { enrollments: true, courses: true } } },
+    include: { _count: { select: { enrollments: { where: { isActive: true } }, courses: true } } },
   });
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Batches</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Create a batch, then add your courses to it.
-          </p>
-        </div>
-        <BatchFormDialog />
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-slate-900">My Batches</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Batches assigned to you by the institute admin.
+        </p>
       </div>
 
       <Card className="border-slate-200">
         <CardHeader>
-          <CardTitle className="text-base">All batches ({batches.length})</CardTitle>
+          <CardTitle className="text-base">Assigned batches ({batches.length})</CardTitle>
         </CardHeader>
         <CardContent>
           {batches.length === 0 ? (
-            <EmptyState icon={Layers} title="No batches yet" description="Create your first batch." />
+            <EmptyState icon={Layers} title="No batches assigned" description="Your admin hasn't assigned you a batch yet." />
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -71,7 +71,7 @@ export default async function TeacherBatchesPage() {
                               : "inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
                           }
                         >
-                          {b.isActive ? "Active" : "Inactive"}
+                          {b.isActive ? "Active" : "Archived"}
                         </span>
                       </TableCell>
                     </TableRow>

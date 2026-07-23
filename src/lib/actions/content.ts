@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
 import { isAdminArea } from "@/lib/roles";
+import { hasCapability } from "@/lib/capabilities";
 import { getSignedUploadUrl } from "@/lib/storage";
 import { notifyBatchStudents, notifyAdmins } from "@/lib/notifications/events";
 import { getAccessPolicy } from "@/lib/access-policy";
@@ -14,10 +15,14 @@ import { getAccessPolicy } from "@/lib/access-policy";
 
 export type ActionResult = { ok: boolean; error?: string; id?: string };
 
-// Authorization: admin manages any course; teacher only their own (FR-ROLE-1/3).
+// Authorization: Super Admin / Admin with COURSE_MANAGE manage any course;
+// teacher only their own. IT has no business-write path (FR-IT-06).
 async function assertCanManageCourse(courseId: string) {
   const user = await requireUser();
-  if (isAdminArea(user.role)) return user;
+  if (isAdminArea(user.role)) {
+    if (await hasCapability(user, "COURSE_MANAGE")) return user;
+    throw new Error("403 — missing capability COURSE_MANAGE");
+  }
   if (user.role === "TEACHER") {
     const course = await db.course.findFirst({
       where: { id: courseId, teacherId: user.id },
@@ -142,15 +147,14 @@ export async function createResource(values: unknown): Promise<ActionResult> {
 }
 
 export async function deleteResource(id: string): Promise<ActionResult> {
-  const user = await requireUser();
   const resource = await db.resource.findUnique({
     where: { id },
     select: { chapter: { select: { courseId: true } } },
   });
   if (!resource) return { ok: false, error: "Resource not found" };
   const courseId = resource.chapter.courseId;
-  // Reuse the same authorization gate.
-  if (user.role !== "ADMIN") await assertCanManageCourse(courseId);
+  // Reuse the same authorization gate (capability-aware for admin-area roles).
+  await assertCanManageCourse(courseId);
   await db.resource.delete({ where: { id } });
   contentPaths(courseId);
   return { ok: true };

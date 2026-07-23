@@ -66,9 +66,16 @@ model User {
   id            String         @id @default(cuid())
   name          String
   email         String         @unique
+  phone         String? // FR-AU-01 — phone login identifier
   password      String // bcryptjs hash, salt rounds >= 10 (FR-AUTH-03)
   role          Role
   status        UserStatus     @default(ACTIVE) // FR-AUTH-9
+  // Auth hardening (FR-AU-02/05)
+  mustChangePassword  Boolean   @default(false) // forced change on first login for admin-created accounts
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdById         String?
   parentName    String?
   parentPhone   String?
   parentEmail   String?
@@ -91,6 +98,9 @@ model User {
   doubtReplies      DoubtReply[]       @relation("DoubtReplyAuthor")
   comments          Comment[]          @relation("CommentAuthor")
   feedback          Feedback[]         @relation("FeedbackAuthor")
+  // Capability delegation (FR-SA-03, FR-PM-01/02)
+  capabilities      AdminCapability[]  @relation("AdminCapabilities")
+  grantedCapabilities AdminCapability[] @relation("GrantedCapabilities")
   // Parent ↔ student links (FR-PAR-1)
   childLinks        ParentLink[]       @relation("ParentOf") // rows where this user is the parent
   parentLinks       ParentLink[]       @relation("StudentOf") // rows where this user is the student
@@ -145,20 +155,40 @@ model Setting {
   @@index([instituteId])
 }
 
-// Immutable audit trail of privileged/destructive actions (FR-ADM-6, NFR-S6).
+// Immutable audit trail of privileged/destructive actions (FR-AT-01/02).
 model AuditEntry {
-  id        String   @id @default(cuid())
-  actorId   String?
-  actor     User?    @relation(fields: [actorId], references: [id])
-  actorRole String?
-  action    String // e.g. "user.delete", "batch.create"
-  entity    String // e.g. "User"
-  entityId  String?
-  detail    String? // human-readable summary
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  actorId     String?
+  actor       User?    @relation(fields: [actorId], references: [id])
+  actorRole   String?
+  action      String // e.g. "user.delete", "capability.grant"
+  entity      String // e.g. "User"
+  entityId    String?
+  detail      String? // human-readable summary
+  beforeValue String? // JSON snapshot before the change (FR-AT-01)
+  afterValue  String? // JSON snapshot after the change
+  ip          String?
+  createdAt   DateTime @default(now())
 
   @@index([entity, entityId])
   @@index([createdAt])
+}
+
+// One row per capability granted to an ADMIN (FR-SA-03). Absence = denied.
+// SUPER_ADMIN never consults this table (short-circuit, FR-SA-01); roles other
+// than ADMIN can never hold a row that matters. Looked up per request — never
+// cached in the JWT — so revocation is immediate (FR-SA-04).
+model AdminCapability {
+  id            String   @id @default(cuid())
+  adminUserId   String
+  admin         User     @relation("AdminCapabilities", fields: [adminUserId], references: [id], onDelete: Cascade)
+  capabilityKey String // e.g. "PAYMENT_COLLECT" — whitelisted in src/lib/capabilities.ts
+  grantedById   String?
+  grantedBy     User?    @relation("GrantedCapabilities", fields: [grantedById], references: [id])
+  grantedAt     DateTime @default(now())
+
+  @@unique([adminUserId, capabilityKey])
+  @@index([adminUserId])
 }
 
 model Batch {

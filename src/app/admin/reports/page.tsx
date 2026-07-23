@@ -4,7 +4,9 @@ import {
   FileText, Star, MessagesSquare,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { redirect } from "next/navigation";
 import { requireAdminArea } from "@/lib/session";
+import { hasCapability } from "@/lib/capabilities";
 import { getInstituteReport } from "@/lib/reports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,7 +37,9 @@ function Stat({ icon: Icon, label, value, hint }: { icon: LucideIcon; label: str
 const dash = (v: number | null, suffix = "%") => (v === null ? "—" : `${v}${suffix}`);
 
 export default async function AdminReportsPage() {
-  await requireAdminArea();
+  const user = await requireAdminArea();
+  // FR-PM-01/02 + REPORT_VIEW: page-level capability gate.
+  if (!(await hasCapability(user, "REPORT_VIEW"))) redirect("/admin");
   const { kpis, perBatch } = await getInstituteReport();
 
   return (

@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import { Check, Minus } from "lucide-react";
 import { requireAdminArea } from "@/lib/session";
-import { isFullAdmin } from "@/lib/roles";
+import { db } from "@/lib/db";
 import { getAccessPolicy } from "@/lib/access-policy";
+import type { CapabilityKey } from "@/lib/capabilities-shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { AccessControlEditor } from "@/components/admin/access-control-editor";
+import { CapabilityMatrix } from "@/components/admin/capability-matrix";
 
 export const metadata: Metadata = { title: "Access Control" };
 
@@ -41,17 +43,43 @@ const MATRIX: Row[] = [
 
 export default async function AccessControlPage() {
   const user = await requireAdminArea();
-  const canEdit = isFullAdmin(user.role);
+  const isSuperAdmin = user.role === "SUPER_ADMIN";
+  const canEdit = isSuperAdmin; // policies + grants are Super Admin's alone
   const policy = await getAccessPolicy();
+
+  // FR-SA-03: the Admins × capabilities grant matrix (Super Admin only).
+  const admins = isSuperAdmin
+    ? (
+        await db.user.findMany({
+          where: { role: "ADMIN", deletedAt: null },
+          orderBy: { name: "asc" },
+          select: {
+            id: true, name: true, email: true,
+            capabilities: { select: { capabilityKey: true } },
+          },
+        })
+      ).map((a) => ({
+        id: a.id,
+        name: a.name,
+        email: a.email,
+        keys: a.capabilities.map((c) => c.capabilityKey as CapabilityKey),
+      }))
+    : [];
 
   return (
     <div>
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">Access Control</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Role permissions and institute-wide access policies (FR-ACL).
+          Delegated capabilities, role permissions and institute policies (FR-SA-03, FR-PM-01/02).
         </p>
       </div>
+
+      {isSuperAdmin ? (
+        <div className="mb-6">
+          <CapabilityMatrix admins={admins} />
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <Card className="border-slate-200">

@@ -18,30 +18,50 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/logout-button";
+import type { CapabilityKey } from "@/lib/capabilities-shared";
 
-type NavItem = { href: string; label: string; icon: LucideIcon };
+// FR-PM-01: each item declares the capabilities that unlock it (any-of).
+// `superAdminOnly` items never render for plain Admins or IT.
+type NavItem = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  needs?: CapabilityKey[];
+  superAdminOnly?: boolean;
+};
 
 const NAV: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/batches", label: "Batches", icon: Layers },
-  { href: "/admin/courses", label: "Courses", icon: BookOpen },
-  { href: "/admin/reports", label: "Reports", icon: BarChart3 },
-  { href: "/admin/approvals", label: "Approvals", icon: BadgeCheck },
-  { href: "/admin/import", label: "Bulk import", icon: Upload },
-  { href: "/admin/control-center", label: "Control Center", icon: SlidersHorizontal },
-  { href: "/admin/access-control", label: "Access Control", icon: ShieldCheck },
-  { href: "/admin/recycle-bin", label: "Recycle bin", icon: Trash2 },
+  { href: "/admin/users", label: "Users", icon: Users, needs: ["TEACHER_MANAGE", "STUDENT_MANAGE", "TEACHER_VIEW", "PASSWORD_RESET"] },
+  { href: "/admin/batches", label: "Batches", icon: Layers, needs: ["BATCH_MANAGE", "TEACHER_VIEW"] },
+  { href: "/admin/courses", label: "Courses", icon: BookOpen, needs: ["COURSE_MANAGE"] },
+  { href: "/admin/reports", label: "Reports", icon: BarChart3, needs: ["REPORT_VIEW"] },
+  { href: "/admin/approvals", label: "Approvals", icon: BadgeCheck, needs: ["DOCUMENT_APPROVE"] },
+  { href: "/admin/import", label: "Bulk import", icon: Upload, needs: ["STUDENT_BULK_IMPORT"] },
+  { href: "/admin/control-center", label: "Control Center", icon: SlidersHorizontal, superAdminOnly: true },
+  { href: "/admin/access-control", label: "Access Control", icon: ShieldCheck, superAdminOnly: true },
+  { href: "/admin/recycle-bin", label: "Recycle bin", icon: Trash2, needs: ["TEACHER_MANAGE", "STUDENT_MANAGE"] },
 ];
 
 export function AdminSidebar({
   user,
+  role,
+  capabilities = [],
   onNavigate,
 }: {
   user: { name?: string | null; email?: string | null };
+  role?: string;
+  capabilities?: CapabilityKey[];
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const capSet = new Set(capabilities);
+  const visible = NAV.filter((item) => {
+    if (role === "SUPER_ADMIN") return true;
+    if (item.superAdminOnly) return false;
+    if (!item.needs) return true;
+    return item.needs.some((k) => capSet.has(k));
+  });
 
   return (
     <div className="flex h-full w-64 flex-col bg-slate-900 text-slate-100">
@@ -53,7 +73,7 @@ export function AdminSidebar({
       </div>
 
       <nav className="flex-1 space-y-1 px-3">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {visible.map(({ href, label, icon: Icon }) => {
           const active = href === "/admin" ? pathname === href : pathname.startsWith(href);
           return (
             <Link
