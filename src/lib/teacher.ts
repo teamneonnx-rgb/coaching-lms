@@ -34,46 +34,30 @@ export async function getBatchRoster(batchId: string, date: Date) {
 
   const attendance = await db.attendance.findMany({
     where: { batchId, date },
-    select: { userId: true, status: true },
+    select: { userId: true, status: true, approvalStatus: true },
   });
-  const statusByUser = new Map<string, AttendanceStatus>(
-    attendance.map((a) => [a.userId, a.status])
-  );
+  const byUser = new Map(attendance.map((a) => [a.userId, a]));
 
-  return enrollments.map((e) => ({
-    studentId: e.student.id,
-    name: e.student.name,
-    email: e.student.email,
-    status: statusByUser.get(e.student.id) ?? null,
-  }));
+  return enrollments.map((e) => {
+    const row = byUser.get(e.student.id);
+    return {
+      studentId: e.student.id,
+      name: e.student.name,
+      email: e.student.email,
+      status: (row?.status ?? null) as AttendanceStatus | null,
+      // FR-TE-12: teacher sees the approval state of submitted attendance.
+      approvalStatus: row?.approvalStatus ?? null,
+    };
+  });
 }
 
+// Student/parent-facing history: approved records only (FR-AD-45/47 — pending
+// attendance is invisible outside the teacher/admin flows).
 export async function getRecentAttendance(userId: string, take = 10) {
   return db.attendance.findMany({
-    where: { userId },
+    where: { userId, approvalStatus: { in: ["APPROVED", "AMENDED"] } },
     orderBy: { date: "desc" },
     take,
     include: { batch: { select: { name: true } } },
-  });
-}
-
-// Student self-marked attendances awaiting this teacher's validation (FR-ATT-4).
-export async function getPendingValidations(teacherId: string) {
-  const batches = await getTeacherBatches(teacherId);
-  const batchIds = batches.map((b) => b.id);
-  if (batchIds.length === 0) return [];
-
-  return db.attendance.findMany({
-    where: {
-      batchId: { in: batchIds },
-      validatedById: null,
-      user: { role: "STUDENT" },
-    },
-    orderBy: { markedAt: "desc" },
-    take: 50,
-    include: {
-      user: { select: { name: true, email: true } },
-      batch: { select: { name: true } },
-    },
   });
 }

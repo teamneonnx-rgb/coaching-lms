@@ -46,7 +46,7 @@ import {
 import { ConfirmDeleteDialog } from "@/components/confirm-delete-dialog";
 import { EmptyState } from "@/components/empty-state";
 
-type Resource = { id: string; title: string; type: "VIDEO" | "PDF"; duration: number | null; approvalStatus?: "PENDING" | "APPROVED" | "REJECTED" };
+type Resource = { id: string; title: string; type: "VIDEO" | "PDF"; duration: number | null; approvalStatus?: "PENDING" | "APPROVED" | "REJECTED" | "AMENDED" };
 type Chapter = { id: string; title: string; resources: Resource[] };
 
 export function CourseContentManager({

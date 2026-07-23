@@ -60,6 +60,7 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+  AMENDED // attendance corrected by Admin after approval (FR-AD-48)
 }
 
 model User {
@@ -297,6 +298,11 @@ model ResourceProgress {
   @@index([studentId])
 }
 
+// One table for BOTH student and teacher attendance (split by user.role).
+// PRD FR-AD-44..51: the batch TEACHER records student attendance, ADMIN
+// records teacher attendance, and ADMIN is the sole approval authority for
+// all of it. Rows are PENDING until approved; pending rows are invisible to
+// students/parents and excluded from every percentage.
 model Attendance {
   id       String           @id @default(cuid())
   date     DateTime         @default(now()) @db.Date
@@ -306,14 +312,17 @@ model Attendance {
   batchId  String?
   batch    Batch?           @relation(fields: [batchId], references: [id])
   markedAt DateTime         @default(now())
-  // Validation workflow (FR-ATT-4/5): student self-marks stay pending until a
-  // teacher validates. validatedById = the validating teacher; null = pending.
+  markedById String? // teacher (student rows) / admin (teacher rows) — history attribution
+  // Approval (FR-AD-44/47/48). validatedById/At = the approving ADMIN (column
+  // names kept from the earlier workflow for a reversible migration).
+  approvalStatus ApprovalStatus @default(APPROVED) // existing rows backfill APPROVED
   validatedById String?
   validatedAt   DateTime?
 
   // FR-ATT-01: prevents duplicate attendance entries
   @@unique([userId, date, batchId])
   @@index([batchId, date])
+  @@index([approvalStatus, date])
 }
 
 model Notification {

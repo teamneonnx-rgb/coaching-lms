@@ -68,7 +68,8 @@ export async function getParentChildren(parentId: string) {
     const s = link.student;
     const [attendance, submissions] = await Promise.all([
       db.attendance.findMany({
-        where: { userId: s.id },
+        // FR-AD-45: parents see approved attendance only.
+        where: { userId: s.id, approvalStatus: { in: ["APPROVED", "AMENDED"] } },
         orderBy: { date: "desc" },
         take: 60,
         select: { status: true, date: true },

@@ -4,11 +4,10 @@ import { Layers, BookOpen, Users, CalendarCheck } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { db } from "@/lib/db";
 import { getTeacherBatches, getRecentAttendance } from "@/lib/teacher";
-import { todayDateOnly, formatDate } from "@/lib/date";
+import { formatDate } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
-import { SelfAttendanceCard } from "@/components/attendance/self-attendance-card";
 import { AttendanceStatusBadge } from "@/components/attendance/attendance-status-badge";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -16,15 +15,11 @@ export const metadata: Metadata = { title: "Dashboard" };
 export default async function TeacherDashboard() {
   const user = await requireRole("TEACHER");
 
-  const [batches, courseCount, studentCount, todaySelf, recent] = await Promise.all([
+  const [batches, courseCount, studentCount, recent] = await Promise.all([
     getTeacherBatches(user.id),
     db.course.count({ where: { teacherId: user.id } }),
     db.enrollment.count({
       where: { isActive: true, batch: { courses: { some: { teacherId: user.id } } } },
-    }),
-    db.attendance.findFirst({
-      where: { userId: user.id, date: todayDateOnly(), batchId: null },
-      select: { status: true },
     }),
     getRecentAttendance(user.id, 6),
   ]);
@@ -68,11 +63,9 @@ export default async function TeacherDashboard() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <SelfAttendanceCard currentStatus={todaySelf?.status ?? null} accent="teal" />
-
         <Card className="border-slate-200">
           <CardHeader>
-            <CardTitle className="text-base">My recent attendance</CardTitle>
+            <CardTitle className="text-base">My attendance (admin-recorded)</CardTitle>
           </CardHeader>
           <CardContent>
             {recent.length === 0 ? (

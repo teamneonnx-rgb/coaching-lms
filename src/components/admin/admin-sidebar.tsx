@@ -13,6 +13,7 @@ import {
   BarChart3,
   BadgeCheck,
   ShieldCheck,
+  CalendarCheck,
   SlidersHorizontal,
   type LucideIcon,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const NAV: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/users", label: "Users", icon: Users, needs: ["TEACHER_MANAGE", "STUDENT_MANAGE", "TEACHER_VIEW", "PASSWORD_RESET"] },
   { href: "/admin/batches", label: "Batches", icon: Layers, needs: ["BATCH_MANAGE", "TEACHER_VIEW"] },
+  { href: "/admin/attendance", label: "Attendance", icon: CalendarCheck, needs: ["TEACHER_ATTENDANCE", "STUDENT_ATTENDANCE_APPROVE"] },
   { href: "/admin/courses", label: "Courses", icon: BookOpen, needs: ["COURSE_MANAGE"] },
   { href: "/admin/reports", label: "Reports", icon: BarChart3, needs: ["REPORT_VIEW"] },
   { href: "/admin/approvals", label: "Approvals", icon: BadgeCheck, needs: ["DOCUMENT_APPROVE"] },

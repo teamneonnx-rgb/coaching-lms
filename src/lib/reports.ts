@@ -25,7 +25,7 @@ export async function getInstituteReport() {
       db.user.count({ where: { role: "TEACHER", deletedAt: null } }),
       db.batch.count({ where: { deletedAt: null } }),
       db.course.count({ where: { deletedAt: null } }),
-      db.attendance.groupBy({ by: ["status"], _count: { _all: true } }),
+      db.attendance.groupBy({ by: ["status"], where: { approvalStatus: { in: ["APPROVED", "AMENDED"] } }, _count: { _all: true } }),
       db.submission.findMany({ where: { status: "GRADED" }, select: { score: true, maxScore: true } }),
       db.assignmentSubmission.findMany({ where: { status: "GRADED" }, select: { score: true, assignment: { select: { totalMarks: true } } } }),
       db.feedback.aggregate({ _avg: { rating: true }, _count: { _all: true } }),
@@ -74,7 +74,7 @@ export async function getBatchBreakdown() {
   return Promise.all(
     batches.map(async (b) => {
       const [attRows, subs] = await Promise.all([
-        db.attendance.groupBy({ by: ["status"], where: { batchId: b.id }, _count: { _all: true } }),
+        db.attendance.groupBy({ by: ["status"], where: { batchId: b.id, approvalStatus: { in: ["APPROVED", "AMENDED"] } }, _count: { _all: true } }),
         db.submission.findMany({
           where: { status: "GRADED", assessment: { course: { batchId: b.id } } },
           select: { score: true, maxScore: true },
@@ -118,7 +118,7 @@ export async function getTeacherClassReport(teacherId: string) {
       const [attRows, assessSubs, assignSubs] = await Promise.all([
         db.attendance.groupBy({
           by: ["userId", "status"],
-          where: { batchId: b.id, userId: { in: studentIds } },
+          where: { batchId: b.id, userId: { in: studentIds }, approvalStatus: { in: ["APPROVED", "AMENDED"] } },
           _count: { _all: true },
         }),
         db.submission.findMany({
@@ -156,7 +156,7 @@ export async function getTeacherClassReport(teacherId: string) {
 // ── Student progress report (self) ─────────────────────────────────
 export async function getStudentReport(studentId: string, batchId: string) {
   const [attRows, totalResources, completed, assessSubs, assignSubs] = await Promise.all([
-    db.attendance.groupBy({ by: ["status"], where: { userId: studentId, batchId }, _count: { _all: true } }),
+    db.attendance.groupBy({ by: ["status"], where: { userId: studentId, batchId, approvalStatus: { in: ["APPROVED", "AMENDED"] } }, _count: { _all: true } }),
     db.resource.count({ where: { approvalStatus: "APPROVED", chapter: { course: { batchId, deletedAt: null } } } }),
     db.resourceProgress.count({ where: { studentId, resource: { approvalStatus: "APPROVED", chapter: { course: { batchId, deletedAt: null } } } } }),
     db.submission.findMany({

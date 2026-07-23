@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import { CalendarCheck, Layers } from "lucide-react";
 import { requireRole } from "@/lib/session";
-import { db } from "@/lib/db";
 import { getActiveBatch } from "@/lib/student";
 import { getRecentAttendance } from "@/lib/teacher";
-import { todayDateOnly, formatDate } from "@/lib/date";
+import { formatDate } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
-import { SelfAttendanceCard } from "@/components/attendance/self-attendance-card";
 import { AttendanceStatusBadge } from "@/components/attendance/attendance-status-badge";
 
 export const metadata: Metadata = { title: "Attendance" };
 
+// FR-ST-03 / FR-AD-45: read-only view of ADMIN-APPROVED attendance. Students
+// no longer self-mark — the batch teacher records attendance and Admin
+// approves it; pending records never appear here.
 export default async function StudentAttendancePage() {
   const user = await requireRole("STUDENT");
   const batch = await getActiveBatch(user.id);
@@ -28,36 +29,31 @@ export default async function StudentAttendancePage() {
     );
   }
 
-  const [todayRecord, history] = await Promise.all([
-    db.attendance.findUnique({
-      where: {
-        userId_date_batchId: {
-          userId: user.id,
-          date: todayDateOnly(),
-          batchId: batch.id,
-        },
-      },
-      select: { status: true },
-    }),
-    getRecentAttendance(user.id, 15),
-  ]);
+  const history = await getRecentAttendance(user.id, 30);
+  const attended = history.filter((h) => h.status === "PRESENT" || h.status === "LATE").length;
+  const pct = history.length > 0 ? Math.round((attended / history.length) * 100) : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4 lg:p-8">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Attendance</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{batch.name}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {batch.name}
+          {pct !== null ? ` · ${pct}% over the last ${history.length} approved day(s)` : ""}
+        </p>
       </div>
-
-      <SelfAttendanceCard currentStatus={todayRecord?.status ?? null} accent="orange" />
 
       <Card className="border-none shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base">Recent history</CardTitle>
+          <CardTitle className="text-base">Approved records</CardTitle>
         </CardHeader>
         <CardContent>
           {history.length === 0 ? (
-            <EmptyState icon={CalendarCheck} title="No attendance records yet" />
+            <EmptyState
+              icon={CalendarCheck}
+              title="No approved attendance yet"
+              description="Your teacher records attendance and the admin approves it before it appears here."
+            />
           ) : (
             <ul className="divide-y divide-slate-100">
               {history.map((h) => (
