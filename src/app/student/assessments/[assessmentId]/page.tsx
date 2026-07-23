@@ -51,7 +51,9 @@ export default async function TakeAssessmentPage({
         <ResultView
           type={assessment.type}
           status={submission.status}
+          evaluationStatus={submission.evaluationStatus}
           score={submission.score}
+          objectiveScore={submission.objectiveScore}
           maxScore={submission.maxScore}
           feedback={submission.feedback}
           answers={submission.answers}
@@ -68,14 +70,18 @@ export default async function TakeAssessmentPage({
 function ResultView({
   type,
   status,
+  evaluationStatus,
   score,
+  objectiveScore,
   maxScore,
   feedback,
   answers,
 }: {
   type: "OBJECTIVE" | "SUBJECTIVE";
   status: "SUBMITTED" | "GRADED";
+  evaluationStatus: "PARTIAL_AWAITING_EVALUATION" | "EVALUATED" | null;
   score: number | null;
+  objectiveScore: number | null;
   maxScore: number | null;
   feedback: string | null;
   answers: { isCorrect: boolean | null }[];
@@ -91,6 +97,35 @@ function ResultView({
           </p>
         </CardContent>
       </Card>
+    );
+  }
+
+  // FR-ST-04b: mixed test with long answers still pending.
+  if (evaluationStatus === "PARTIAL_AWAITING_EVALUATION") {
+    const correctP = answers.filter((a) => a.isCorrect === true).length;
+    const wrongP = answers.filter((a) => a.isCorrect === false).length;
+    return (
+      <div className="space-y-4">
+        <Card className="border-none shadow-sm">
+          <CardContent className="flex flex-col items-center gap-2 p-8 text-center">
+            <Clock className="size-9 text-amber-500" />
+            <span className="rounded-full bg-amber-100 px-3 py-0.5 text-xs font-medium text-amber-700">
+              Partial — awaiting evaluation
+            </span>
+            <p className="mt-1 text-2xl font-semibold text-slate-900">
+              {objectiveScore ?? "—"}
+              <span className="text-base text-muted-foreground"> objective marks so far</span>
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Your long answers are with the teacher. Your final total will appear once they finish marking.
+            </p>
+          </CardContent>
+        </Card>
+        <div className="grid grid-cols-2 gap-3">
+          <StatBox icon={CheckCircle2} tint="text-green-600" label="Objective correct" value={correctP} />
+          <StatBox icon={XCircle} tint="text-red-600" label="Objective wrong" value={wrongP} />
+        </div>
+      </div>
     );
   }
 

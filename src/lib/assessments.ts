@@ -98,11 +98,40 @@ export async function getAssessmentForStudent(
         select: {
           id: true,
           text: true,
+          type: true, // drives the input widget
           points: true,
           options: {
             orderBy: { order: "asc" },
-            select: { id: true, text: true }, // NO isCorrect
+            select: { id: true, text: true }, // NO isCorrect / correctAnswer
           },
+        },
+      },
+    },
+  });
+}
+
+// FR-TE-14: attempts awaiting long-answer marking, oldest first, with the
+// long-answer questions + the student's responses.
+export async function getPendingEvaluations(teacherId: string) {
+  return db.submission.findMany({
+    where: {
+      evaluationStatus: "PARTIAL_AWAITING_EVALUATION",
+      assessment: { teacherId },
+    },
+    orderBy: { submittedAt: "asc" },
+    select: {
+      id: true,
+      objectiveScore: true,
+      maxScore: true,
+      submittedAt: true,
+      student: { select: { name: true, email: true } },
+      assessment: { select: { title: true } },
+      answers: {
+        where: { autoScored: false },
+        select: {
+          id: true,
+          studentAnswer: true,
+          question: { select: { text: true, points: true } },
         },
       },
     },

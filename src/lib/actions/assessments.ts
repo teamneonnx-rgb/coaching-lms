@@ -22,22 +22,23 @@ async function teacherOwnsCourse(teacherId: string, courseId: string) {
 
 function buildQuestionCreate(
   questions: {
+    type: "MCQ" | "TRUE_FALSE" | "SINGLE_WORD" | "LONG_ANSWER";
     text: string;
     points: number;
+    correctAnswer?: string;
     options: { text: string; isCorrect: boolean }[];
   }[]
 ) {
   return questions.map((q, qi) => ({
+    type: q.type,
     text: q.text,
     points: q.points,
+    correctAnswer: q.type === "TRUE_FALSE" || q.type === "SINGLE_WORD" ? (q.correctAnswer?.trim() || null) : null,
     order: qi,
-    options: {
-      create: q.options.map((o, oi) => ({
-        text: o.text,
-        isCorrect: o.isCorrect,
-        order: oi,
-      })),
-    },
+    // Only MCQ questions carry options.
+    options: q.type === "MCQ"
+      ? { create: q.options.map((o, oi) => ({ text: o.text, isCorrect: o.isCorrect, order: oi })) }
+      : undefined,
   }));
 }
 

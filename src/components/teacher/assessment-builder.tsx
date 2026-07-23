@@ -33,8 +33,10 @@ export type BuilderValues = {
   negativeMarking: number;
   timeLimit: number; // 0 = no limit
   questions: {
+    type: "MCQ" | "TRUE_FALSE" | "SINGLE_WORD" | "LONG_ANSWER";
     text: string;
     points: number;
+    correctAnswer?: string;
     options: { text: string; isCorrect: boolean }[];
   }[];
 };
@@ -53,8 +55,10 @@ type ExistingAssessment = {
 };
 
 const emptyQuestion = () => ({
+  type: "MCQ" as const,
   text: "",
   points: 1,
+  correctAnswer: "",
   options: [
     { text: "", isCorrect: true },
     { text: "", isCorrect: false },
@@ -237,8 +241,8 @@ export function AssessmentBuilder({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="OBJECTIVE">Objective (auto-graded)</SelectItem>
-                  <SelectItem value="SUBJECTIVE">Subjective (upload &amp; grade)</SelectItem>
+                  <SelectItem value="OBJECTIVE">Question-based test (MCQ / true-false / word / long-answer)</SelectItem>
+                  <SelectItem value="SUBJECTIVE">Upload-based (student uploads a scan)</SelectItem>
                 </SelectContent>
               </Select>
             </div>

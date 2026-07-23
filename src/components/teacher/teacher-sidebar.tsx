@@ -9,6 +9,7 @@ import {
   ClipboardList,
   FileText,
   MessagesSquare,
+  ClipboardCheck,
   BarChart3,
   BookOpen,
   Layers,
@@ -27,6 +28,7 @@ const NAV: NavItem[] = [
   { href: "/teacher/assessments", label: "Assessments", icon: ClipboardList },
   { href: "/teacher/assignments", label: "Assignments", icon: FileText },
   { href: "/teacher/doubts", label: "Doubts", icon: MessagesSquare },
+  { href: "/teacher/evaluations", label: "Evaluations", icon: ClipboardCheck },
   { href: "/teacher/reports", label: "Reports", icon: BarChart3 },
 ];
 

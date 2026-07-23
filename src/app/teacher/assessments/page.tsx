@@ -165,8 +165,10 @@ export default async function AssessmentsPage({
                       submissionCount: editing._count.submissions,
                       questions: editing.questions.map((q) => ({
                         id: q.id,
+                        type: q.type,
                         text: q.text,
                         points: q.points,
+                        correctAnswer: q.correctAnswer ?? "",
                         options: q.options.map((o) => ({
                           id: o.id,
                           text: o.text,

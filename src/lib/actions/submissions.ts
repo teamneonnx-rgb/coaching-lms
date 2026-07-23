@@ -6,7 +6,8 @@ import { db } from "@/lib/db";
 import { requireRole } from "@/lib/session";
 import { getActiveBatch } from "@/lib/student";
 import { getSignedUploadUrl } from "@/lib/storage";
-import { gradeObjective } from "@/lib/grading";
+import { gradeAttempt, type QuestionType } from "@/lib/grading";
+import { notifyUser } from "@/lib/notifications/events";
 import {
   objectiveSubmissionSchema,
   subjectiveSubmissionSchema,
@@ -14,7 +15,10 @@ import {
 
 export type ActionResult = { ok: boolean; error?: string; info?: string };
 
-// Auto-graded objective submission (Module C — grading + negative marking).
+// Test submission (FR-AD-56..58). Objective questions auto-score instantly.
+// If the test has long-answer questions the attempt is split: the objective
+// score shows now, and the attempt stays "partial — awaiting evaluation" until
+// the batch teacher marks the long answers.
 export async function submitObjective(values: unknown): Promise<ActionResult> {
   const student = await requireRole("STUDENT");
   const parsed = objectiveSubmissionSchema.safeParse(values);
@@ -29,10 +33,14 @@ export async function submitObjective(values: unknown): Promise<ActionResult> {
     where: { id: assessmentId, isPublished: true, type: "OBJECTIVE", course: { batches: { some: { batchId: batch.id } } } },
     select: {
       negativeMarking: true,
+      teacherId: true,
+      title: true,
       questions: {
         select: {
           id: true,
+          type: true,
           points: true,
+          correctAnswer: true,
           options: { select: { id: true, isCorrect: true } },
         },
       },
@@ -42,29 +50,39 @@ export async function submitObjective(values: unknown): Promise<ActionResult> {
 
   const gradable = assessment.questions.map((q) => ({
     id: q.id,
+    type: q.type as QuestionType,
     points: q.points,
     correctOptionId: q.options.find((o) => o.isCorrect)?.id ?? null,
+    correctAnswer: q.correctAnswer,
   }));
 
   const validQuestionIds = new Set(gradable.map((q) => q.id));
   const cleanAnswers = answers.filter((a) => validQuestionIds.has(a.questionId));
 
-  const result = gradeObjective(gradable, cleanAnswers, assessment.negativeMarking);
+  const result = gradeAttempt(gradable, cleanAnswers, assessment.negativeMarking);
+  const totalMax = result.objectiveMax + result.subjectiveMax;
 
   try {
     await db.submission.create({
       data: {
         assessmentId,
         studentId: student.id,
-        status: "GRADED", // objective grades instantly
-        score: result.score,
-        maxScore: result.maxScore,
-        gradedAt: new Date(),
+        // Long answers pending → SUBMITTED + PARTIAL; else GRADED + EVALUATED.
+        status: result.hasLongAnswers ? "SUBMITTED" : "GRADED",
+        evaluationStatus: result.hasLongAnswers ? "PARTIAL_AWAITING_EVALUATION" : "EVALUATED",
+        objectiveScore: result.objectiveScore,
+        subjectiveScore: result.hasLongAnswers ? null : 0,
+        score: result.hasLongAnswers ? result.objectiveScore : result.objectiveScore,
+        maxScore: totalMax,
+        gradedAt: result.hasLongAnswers ? null : new Date(),
         answers: {
           create: result.graded.map((g) => ({
             questionId: g.questionId,
             selectedOptionId: g.selectedOptionId,
+            studentAnswer: g.studentAnswer,
             isCorrect: g.isCorrect,
+            marksAwarded: g.marksAwarded,
+            autoScored: g.autoScored,
           })),
         },
       },
@@ -76,8 +94,80 @@ export async function submitObjective(values: unknown): Promise<ActionResult> {
     throw error;
   }
 
+  // FR-TE-14: put the attempt in the teacher's evaluation queue.
+  if (result.hasLongAnswers) {
+    await notifyUser(assessment.teacherId, {
+      title: "Long answers to evaluate",
+      message: `${student.name} submitted "${assessment.title}" — long answers await your marking.`,
+    });
+    revalidatePath("/teacher/evaluations");
+  }
+
   revalidatePath("/student/assessments");
-  return { ok: true, info: `Submitted — you scored ${result.score}/${result.maxScore}` };
+  return {
+    ok: true,
+    info: result.hasLongAnswers
+      ? `Submitted — objective score ${result.objectiveScore}/${result.objectiveMax}. Long answers awaiting evaluation.`
+      : `Submitted — you scored ${result.objectiveScore}/${totalMax}`,
+  };
+}
+
+// FR-TE-13: teacher marks the long answers of a partial attempt. Awards marks
+// + optional remark per long-answer, sums with the objective score, publishes
+// the final total and notifies the student.
+export async function evaluateLongAnswers(values: unknown): Promise<ActionResult> {
+  const teacher = await requireRole("TEACHER");
+  const { evaluateLongAnswersSchema } = await import("@/lib/validations/assessment");
+  const parsed = evaluateLongAnswersSchema.safeParse(values);
+  if (!parsed.success) return { ok: false, error: "Invalid input" };
+  const { submissionId, marks } = parsed.data;
+
+  const submission = await db.submission.findFirst({
+    where: { id: submissionId, assessment: { teacherId: teacher.id } },
+    select: {
+      id: true, studentId: true, objectiveScore: true, maxScore: true,
+      assessment: { select: { title: true } },
+      answers: { where: { autoScored: false }, select: { id: true, questionId: true, question: { select: { points: true } } } },
+    },
+  });
+  if (!submission) return { ok: false, error: "Submission not found" };
+
+  const markById = new Map(marks.map((m) => [m.answerId, m]));
+  let subjectiveScore = 0;
+  for (const ans of submission.answers) {
+    const m = markById.get(ans.id);
+    if (!m) return { ok: false, error: "Mark every long answer before submitting" };
+    if (m.marksAwarded > ans.question.points) {
+      return { ok: false, error: `A long answer's marks exceed its ${ans.question.points} points` };
+    }
+    subjectiveScore += m.marksAwarded;
+    await db.answer.update({
+      where: { id: ans.id },
+      data: { marksAwarded: m.marksAwarded, evaluatorRemark: m.remark || null },
+    });
+  }
+
+  const total = Math.round(((submission.objectiveScore ?? 0) + subjectiveScore) * 100) / 100;
+  await db.submission.update({
+    where: { id: submissionId },
+    data: {
+      subjectiveScore,
+      score: total,
+      status: "GRADED",
+      evaluationStatus: "EVALUATED",
+      gradedById: teacher.id,
+      gradedAt: new Date(),
+    },
+  });
+
+  await notifyUser(submission.studentId, {
+    title: "Test evaluated",
+    message: `Your long answers for "${submission.assessment.title}" were marked. Final: ${total}/${submission.maxScore ?? "?"}.`,
+  });
+
+  revalidatePath("/teacher/evaluations");
+  revalidatePath("/student/assessments");
+  return { ok: true, info: `Evaluated — final ${total}/${submission.maxScore ?? "?"}` };
 }
 
 // Presigned upload URL for a subjective answer scan (PDF/image).

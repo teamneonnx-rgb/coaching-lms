@@ -53,6 +53,22 @@ enum SubmissionStatus {
   GRADED
 }
 
+// PRD test engine: per-question types. MCQ/TRUE_FALSE/SINGLE_WORD auto-score
+// instantly; LONG_ANSWER routes to the batch teacher for manual marking.
+enum QuestionType {
+  MCQ
+  TRUE_FALSE
+  SINGLE_WORD
+  LONG_ANSWER
+}
+
+// FR-AD-58: a mixed test shows the objective score instantly and stays
+// "partial — awaiting evaluation" until the teacher marks the long answers.
+enum EvaluationStatus {
+  PARTIAL_AWAITING_EVALUATION
+  EVALUATED
+}
+
 // Content publishing approval (FR-APR). Teacher-added resources start PENDING
 // and are hidden from students until an admin approves them. Existing rows and
 // admin-added content default to APPROVED so behaviour is unchanged on upgrade.
@@ -514,6 +530,8 @@ model Question {
   assessmentId String
   assessment   Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   text         String
+  type          QuestionType    @default(MCQ) // auto_scorable derived: != LONG_ANSWER
+  correctAnswer String? // TRUE_FALSE: "true"/"false"; SINGLE_WORD: expected word
   points       Int              @default(1)
   order        Int              @default(0)
   options      QuestionOption[]
@@ -543,6 +561,11 @@ model Submission {
   status       SubmissionStatus @default(SUBMITTED)
   score        Float?
   maxScore     Int?
+  // PRD TestAttempt split (FR-AD-56..59)
+  objectiveScore   Float?
+  subjectiveScore  Float?
+  evaluationStatus EvaluationStatus?
+  overriddenById   String? // Admin override authority (FR-AD-59)
   feedback     String?
   fileKey      String? // subjective upload (PDF/image), served via signed URL
   gradedById   String?
@@ -564,6 +587,10 @@ model Answer {
   question         Question        @relation(fields: [questionId], references: [id])
   selectedOptionId String?
   selectedOption   QuestionOption? @relation(fields: [selectedOptionId], references: [id])
+  studentAnswer    String? // TRUE_FALSE / SINGLE_WORD / LONG_ANSWER responses
+  marksAwarded     Float?
+  autoScored       Boolean @default(true)
+  evaluatorRemark  String?
   isCorrect        Boolean?
 
   @@index([submissionId])
