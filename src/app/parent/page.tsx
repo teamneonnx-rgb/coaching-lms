@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import { Users, CalendarCheck, Award } from "lucide-react";
+import { Users, CalendarCheck, Award, IndianRupee } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { getParentChildren } from "@/lib/parent";
+import { getStudentPayments, computeStatus } from "@/lib/payments";
+import { formatDate } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 
@@ -10,6 +12,12 @@ export const metadata: Metadata = { title: "Parent Portal" };
 export default async function ParentDashboard() {
   const parent = await requireRole("PARENT");
   const children = await getParentChildren(parent.id);
+
+  // FR-PA-03: fee status per ward — paid, pending, due dates, history.
+  const feesByChild = new Map<string, Awaited<ReturnType<typeof getStudentPayments>>>();
+  for (const c of children) {
+    feesByChild.set(c.id, await getStudentPayments(c.id));
+  }
 
   return (
     <div className="space-y-6">
@@ -73,6 +81,43 @@ export default async function ParentDashboard() {
                           </span>
                         </li>
                       ))}
+                    </ul>
+                  </div>
+                ) : null}
+
+                {/* FR-PA-03: ward fee status (read-only) */}
+                {(feesByChild.get(c.id) ?? []).length > 0 ? (
+                  <div>
+                    <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <IndianRupee className="size-3.5" /> Fees
+                    </p>
+                    <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                      {(feesByChild.get(c.id) ?? []).map((p) => {
+                        const status = computeStatus(p);
+                        return (
+                          <li key={p.id} className="flex items-center justify-between px-3 py-2 text-sm">
+                            <span className="min-w-0">
+                              <span className="block truncate text-slate-700">{p.title}</span>
+                              <span className="block text-xs text-muted-foreground">
+                                ₹{p.amountPaid}/{p.amountDue}
+                                {p.dueDate ? ` · due ${formatDate(p.dueDate)}` : ""}
+                                {p.receiptNo ? ` · ${p.receiptNo}` : ""}
+                              </span>
+                            </span>
+                            <span
+                              className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                status === "PAID"
+                                  ? "bg-green-100 text-green-700"
+                                  : status === "OVERDUE"
+                                    ? "bg-red-100 text-red-700"
+                                    : "bg-amber-100 text-amber-700"
+                              }`}
+                            >
+                              {status}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ) : null}

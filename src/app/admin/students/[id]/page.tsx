@@ -6,6 +6,8 @@ import { hasCapability } from "@/lib/capabilities";
 import { db } from "@/lib/db";
 import { getActiveBatch } from "@/lib/student";
 import { getStudentReport } from "@/lib/reports";
+import { getStudentPayments, computeStatus } from "@/lib/payments";
+import { formatDate } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Student" };
@@ -46,6 +48,10 @@ export default async function AdminStudentProfilePage({
 
   const batch = crumbBatch ?? (await getActiveBatch(student.id));
   const report = batch ? await getStudentReport(student.id, batch.id) : null;
+
+  // FR-AD-17: per-student fee record (Student payment detail screen).
+  const canViewPayments = await hasCapability(user, "PAYMENT_VIEW");
+  const fees = canViewPayments ? await getStudentPayments(student.id) : [];
 
   return (
     <div>
@@ -146,6 +152,42 @@ export default async function AdminStudentProfilePage({
           </CardContent>
         </Card>
       )}
+
+      {canViewPayments ? (
+        <Card className="mt-6 border-slate-200">
+          <CardHeader><CardTitle className="text-base">Fee record ({fees.length})</CardTitle></CardHeader>
+          <CardContent>
+            {fees.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No fee demands for this student.</p>
+            ) : (
+              <ul className="divide-y divide-slate-100">
+                {fees.map((p) => {
+                  const status = computeStatus(p);
+                  return (
+                    <li key={p.id} className="flex items-center justify-between py-2.5 text-sm">
+                      <span>
+                        <span className="block font-medium text-slate-900">{p.title}</span>
+                        <span className="block text-xs text-muted-foreground">
+                          ₹{p.amountPaid}/{p.amountDue}
+                          {p.dueDate ? ` · due ${formatDate(p.dueDate)}` : ""}
+                          {p.receiptNo ? ` · receipt ${p.receiptNo}` : ""}
+                          {p.mode ? ` · ${p.mode}` : ""}
+                        </span>
+                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                        status === "PAID" ? "bg-green-100 text-green-700"
+                        : status === "OVERDUE" ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700"}`}>
+                        {status}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
     </div>
   );
 }

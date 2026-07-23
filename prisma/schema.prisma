@@ -63,6 +63,71 @@ enum ApprovalStatus {
   AMENDED // attendance corrected by Admin after approval (FR-AD-48)
 }
 
+// ── Payments (FR-AD-17..21, FR-PA-03/04) ───────────────────────────
+enum PaymentStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum PaymentMode {
+  CASH
+  ONLINE
+  CHEQUE
+  UPI
+  RAZORPAY
+}
+
+// One row = one fee demand against a student, payable in parts. `status` is
+// recomputed on every write and defensively on read (FR-AD-19 overdue flag).
+model Payment {
+  id           String        @id @default(cuid())
+  studentId    String
+  student      User          @relation("StudentPayments", fields: [studentId], references: [id], onDelete: Cascade)
+  title        String // e.g. "Term 1 tuition fee"
+  amountDue    Float
+  amountPaid   Float         @default(0)
+  dueDate      DateTime?
+  paidOn       DateTime?
+  mode         PaymentMode?
+  receiptNo    String?       @unique
+  status       PaymentStatus @default(PENDING)
+  recordedById String?
+  // Razorpay online collection (config lives in the Control Center)
+  razorpayOrderId   String? @unique
+  razorpayPaymentId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([studentId])
+  @@index([status, dueDate])
+}
+
+// ── Enquiries (FR-AD-25..28) ───────────────────────────────────────
+enum EnquiryStatus {
+  NEW
+  CONTACTED
+  CONVERTED
+  LOST
+}
+
+model Enquiry {
+  id               String        @id @default(cuid())
+  name             String
+  phone            String?
+  email            String?
+  interestedCourse String?
+  source           String?
+  status           EnquiryStatus @default(NEW)
+  notes            String?
+  convertedUserId  String? // set when promoted into a student record (FR-AD-27)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([status])
+}
+
 model User {
   id            String         @id @default(cuid())
   name          String
@@ -87,6 +152,7 @@ model User {
   classOrStandard     String? // students
   admissionDate       DateTime? // students
   ownedBatches        Batch[]   @relation("BatchTeacher")
+  payments            Payment[] @relation("StudentPayments")
   parentName    String?
   parentPhone   String?
   parentEmail   String?

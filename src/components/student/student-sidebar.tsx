@@ -11,6 +11,7 @@ import {
   FileText,
   MessagesSquare,
   BarChart3,
+  IndianRupee,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const NAV: NavItem[] = [
   { href: "/student/doubts", label: "Doubts", icon: MessagesSquare },
   { href: "/student/attendance", label: "Attendance", icon: CalendarCheck },
   { href: "/student/report", label: "My Report", icon: BarChart3 },
+  { href: "/student/fees", label: "Fees", icon: IndianRupee },
 ];
 
 export function StudentSidebar({
