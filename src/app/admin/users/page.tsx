@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Users as UsersIcon } from "lucide-react";
 import { db } from "@/lib/db";
+import { requireAdminArea } from "@/lib/session";
 import {
   Card,
   CardContent,
@@ -24,6 +25,8 @@ import { UserRowActions } from "@/components/admin/users/user-row-actions";
 export const metadata: Metadata = { title: "Users" };
 
 export default async function AdminUsersPage() {
+  const me = await requireAdminArea();
+  const canImpersonate = me.role === "SUPER_ADMIN";
   const users = await db.user.findMany({
     where: { deletedAt: null },
     orderBy: [{ role: "asc" }, { createdAt: "desc" }],
@@ -99,6 +102,7 @@ export default async function AdminUsersPage() {
                             parentPhone: u.parentPhone,
                             parentEmail: u.parentEmail,
                           }}
+                          canImpersonate={canImpersonate}
                         />
                       </TableCell>
                     </TableRow>

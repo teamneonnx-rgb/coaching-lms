@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import type { Role } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
@@ -15,7 +16,7 @@ export default async function AdminCourseContentPage({
 }) {
   const { courseId } = await params;
   const admin = await requireAdminArea();
-  const course = await getManageableCourse(admin.id, admin.role, courseId);
+  const course = await getManageableCourse(admin.id, admin.role as Role, courseId);
   if (!course) notFound();
 
   return (

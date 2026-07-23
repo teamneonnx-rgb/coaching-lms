@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/session";
@@ -17,6 +18,7 @@ const submitSchema = z.object({
 
 export async function submitAssignment(values: unknown): Promise<ActionResult> {
   const student = await requireRole("STUDENT");
+  await assertNotImpersonating();
   const parsed = submitSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { assignmentId, text, fileKey } = parsed.data;
@@ -55,6 +57,7 @@ export async function getAssignmentUploadUrl(input: {
   contentType: string;
 }): Promise<{ ok: boolean; url?: string; fileKey?: string; error?: string }> {
   const student = await requireRole("STUDENT");
+  await assertNotImpersonating();
   const batch = await getActiveBatch(student.id);
   if (!batch) return { ok: false, error: "You are not in an active batch" };
 

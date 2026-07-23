@@ -36,7 +36,8 @@ export const authConfig = {
     },
     // Runs on every matched request via middleware. Enforces RBAC by
     // inspecting the JWT-derived session (FR-AUTH-02).
-    authorized({ auth, request: { nextUrl } }) {
+    authorized({ auth, request }) {
+      const { nextUrl } = request;
       const isLoggedIn = !!auth?.user;
       const role = auth?.user?.role;
       const { pathname } = nextUrl;
@@ -51,8 +52,11 @@ export const authConfig = {
       // Unauthenticated hitting a protected area → send to /login.
       if (isProtected && !isLoggedIn) return false;
 
+      // FR-SA-06: a Super Admin impersonating someone may browse any role area.
+      const impersonating = role === "SUPER_ADMIN" && !!request.cookies.get("imp_uid")?.value;
+
       // Authenticated but wrong role area → bounce to their own home.
-      if (isProtected && role) {
+      if (isProtected && role && !impersonating) {
         const allowedPrefix = ROLE_PREFIX[role];
         if (!pathname.startsWith(allowedPrefix)) {
           return Response.redirect(new URL(homeForRole(role), nextUrl));

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/session";
@@ -27,6 +28,7 @@ const gradeSchema = z.object({
 
 export async function createAssignment(values: unknown): Promise<ActionResult> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const parsed = createSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const data = parsed.data;
@@ -64,6 +66,7 @@ export async function createAssignment(values: unknown): Promise<ActionResult> {
 
 export async function deleteAssignment(id: string): Promise<ActionResult> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const owned = await db.assignment.findFirst({
     where: { id, teacherId: teacher.id },
     select: { id: true },
@@ -77,6 +80,7 @@ export async function deleteAssignment(id: string): Promise<ActionResult> {
 
 export async function gradeAssignmentSubmission(values: unknown): Promise<ActionResult> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const parsed = gradeSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { submissionId, score, feedback } = parsed.data;
@@ -105,6 +109,7 @@ export async function gradeAssignmentSubmission(values: unknown): Promise<Action
 // Signed URL for a teacher to view a student's uploaded file.
 export async function getAssignmentFileUrl(submissionId: string): Promise<{ ok: boolean; url?: string; error?: string }> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const s = await db.assignmentSubmission.findFirst({
     where: { id: submissionId, assignment: { teacherId: teacher.id } },
     select: { fileKey: true },

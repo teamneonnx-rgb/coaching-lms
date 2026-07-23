@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/session";
 import { getSignedResourceUrl } from "@/lib/storage";
@@ -45,6 +46,7 @@ function buildQuestionCreate(
 // Create or update an assessment (full builder save).
 export async function saveAssessment(values: unknown): Promise<ActionResult> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const parsed = assessmentSchema.safeParse(values);
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -110,6 +112,7 @@ export async function publishAssessment(
   publish: boolean
 ): Promise<ActionResult> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
 
   const assessment = await db.assessment.findFirst({
     where: { id, teacherId: teacher.id },
@@ -137,6 +140,7 @@ export async function publishAssessment(
 
 export async function deleteAssessment(id: string): Promise<ActionResult> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const owned = await db.assessment.findFirst({
     where: { id, teacherId: teacher.id },
     select: { id: true },
@@ -151,6 +155,7 @@ export async function deleteAssessment(id: string): Promise<ActionResult> {
 // Manually grade a subjective submission.
 export async function gradeSubmission(values: unknown): Promise<ActionResult> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const parsed = gradeSubmissionSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { submissionId, score, feedback } = parsed.data;
@@ -189,6 +194,7 @@ export async function getSubmissionFileUrl(
   submissionId: string
 ): Promise<{ ok: boolean; url?: string; error?: string }> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const submission = await db.submission.findFirst({
     where: { id: submissionId, assessment: { teacherId: teacher.id } },
     select: { fileKey: true },

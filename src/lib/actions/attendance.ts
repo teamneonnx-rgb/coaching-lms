@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/session";
 import { teacherOwnsBatch } from "@/lib/teacher";
@@ -22,6 +23,7 @@ export type ActionResult = { ok: boolean; error?: string; info?: string };
  */
 export async function saveBatchAttendance(values: unknown): Promise<ActionResult> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const parsed = batchAttendanceSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { batchId, date: dateStr, entries } = parsed.data;

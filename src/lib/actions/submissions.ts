@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/session";
@@ -21,6 +22,7 @@ export type ActionResult = { ok: boolean; error?: string; info?: string };
 // the batch teacher marks the long answers.
 export async function submitObjective(values: unknown): Promise<ActionResult> {
   const student = await requireRole("STUDENT");
+  await assertNotImpersonating();
   const parsed = objectiveSubmissionSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { assessmentId, answers } = parsed.data;
@@ -117,6 +119,7 @@ export async function submitObjective(values: unknown): Promise<ActionResult> {
 // the final total and notifies the student.
 export async function evaluateLongAnswers(values: unknown): Promise<ActionResult> {
   const teacher = await requireRole("TEACHER");
+  await assertNotImpersonating();
   const { evaluateLongAnswersSchema } = await import("@/lib/validations/assessment");
   const parsed = evaluateLongAnswersSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
@@ -177,6 +180,7 @@ export async function getSubjectiveUploadUrl(input: {
   contentType: string;
 }): Promise<{ ok: boolean; url?: string; fileKey?: string; error?: string }> {
   const student = await requireRole("STUDENT");
+  await assertNotImpersonating();
   const batch = await getActiveBatch(student.id);
   if (!batch) return { ok: false, error: "You are not in an active batch" };
 
@@ -203,6 +207,7 @@ export async function getSubjectiveUploadUrl(input: {
 // Subjective submission — records the uploaded scan for manual grading.
 export async function submitSubjective(values: unknown): Promise<ActionResult> {
   const student = await requireRole("STUDENT");
+  await assertNotImpersonating();
   const parsed = subjectiveSubmissionSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { assessmentId, fileKey } = parsed.data;

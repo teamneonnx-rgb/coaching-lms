@@ -18,6 +18,8 @@ export type ActionResult = { ok: boolean; error?: string; id?: string };
 // Authorization: Super Admin / Admin with COURSE_MANAGE manage any course;
 // teacher only their own. IT has no business-write path (FR-IT-06).
 async function assertCanManageCourse(courseId: string) {
+  const { assertNotImpersonating } = await import("@/lib/impersonation");
+  await assertNotImpersonating();
   const user = await requireUser();
   if (isAdminArea(user.role)) {
     if (await hasCapability(user, "COURSE_MANAGE")) return user;

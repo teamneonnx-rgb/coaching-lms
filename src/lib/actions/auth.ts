@@ -92,6 +92,8 @@ export async function changePasswordAction(values: {
   newPassword: string;
 }): Promise<ActionState & { ok?: boolean }> {
   const { auth } = await import("@/auth");
+  const { assertNotImpersonating } = await import("@/lib/impersonation");
+  await assertNotImpersonating();
   const session = await auth();
   if (!session?.user) return { error: "Not signed in" };
 

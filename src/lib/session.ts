@@ -1,26 +1,28 @@
 import { redirect } from "next/navigation";
 import type { Role } from "@prisma/client";
-import { auth } from "@/auth";
 import { homeForRole, isAdminArea } from "@/lib/roles";
+import { getSessionContext } from "@/lib/impersonation";
 
 // Server-side guard helpers. Middleware already enforces route access, but
 // pages call these as defence-in-depth and to obtain the typed session.
+// During Super Admin impersonation these return the EFFECTIVE (target) user so
+// dashboards render as that user; writes are separately blocked (FR-SA-06).
 export async function requireUser() {
-  const session = await auth();
-  if (!session?.user) redirect("/login");
-  return session.user;
+  const ctx = await getSessionContext();
+  if (!ctx) redirect("/login");
+  return ctx.user;
 }
 
 export async function requireRole(role: Role) {
   const user = await requireUser();
-  if (user.role !== role) redirect(homeForRole(user.role));
+  if (user.role !== role) redirect(homeForRole(user.role as Role));
   return user;
 }
 
-// Allows any admin-area role (SUPER_ADMIN / ADMIN / IT) — used by /admin pages.
+// Allows any admin-area role (SUPER_ADMIN / ADMIN) — used by /admin pages.
 export async function requireAdminArea() {
   const user = await requireUser();
-  if (!isAdminArea(user.role)) redirect(homeForRole(user.role));
+  if (!isAdminArea(user.role as Role)) redirect(homeForRole(user.role as Role));
   return user;
 }
 

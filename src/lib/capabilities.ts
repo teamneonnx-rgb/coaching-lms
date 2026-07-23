@@ -23,7 +23,11 @@ export async function hasCapability(user: SessionUser, key: CapabilityKey): Prom
 
 // The one reusable server-side guard (FR-PM-02). Throws on denial so server
 // actions fail closed; page components should use `hasCapability` + redirect.
+// Also fails closed during impersonation — every capability-gated write is
+// blocked while a Super Admin is viewing as someone else (FR-SA-06).
 export async function requireCapability(key: CapabilityKey) {
+  const { assertNotImpersonating } = await import("@/lib/impersonation");
+  await assertNotImpersonating();
   const user = await requireUser();
   if (!(await hasCapability(user, key))) {
     throw new Error(`403 — missing capability ${key}`);

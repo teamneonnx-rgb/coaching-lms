@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/session";
@@ -17,6 +18,7 @@ const schema = z.object({
 // calendar month per ward, enforced server-side.
 export async function submitMonthlyFeedback(values: unknown): Promise<ActionResult> {
   const parent = await requireRole("PARENT");
+  await assertNotImpersonating();
   const parsed = schema.safeParse(values);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const { wardId, rating, comments } = parsed.data;

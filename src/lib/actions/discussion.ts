@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser, requireRole } from "@/lib/session";
@@ -20,6 +21,7 @@ const askSchema = z.object({
 
 export async function askDoubt(values: unknown): Promise<ActionResult> {
   const student = await requireRole("STUDENT");
+  await assertNotImpersonating();
   const parsed = askSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const { courseId, title, body } = parsed.data;
@@ -59,6 +61,7 @@ const replySchema = z.object({
 // student in the same batch. Access is verified server-side before writing.
 export async function replyToDoubt(values: unknown): Promise<ActionResult> {
   const user = await requireUser();
+  await assertNotImpersonating();
   const parsed = replySchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const { doubtId, body } = parsed.data;
@@ -98,6 +101,7 @@ export async function replyToDoubt(values: unknown): Promise<ActionResult> {
 
 export async function resolveDoubt(doubtId: string, resolved: boolean): Promise<ActionResult> {
   const user = await requireUser();
+  await assertNotImpersonating();
   const doubt = await db.doubt.findFirst({
     where: { id: doubtId, deletedAt: null },
     select: { id: true, authorId: true, course: { select: { teacherId: true } } },
@@ -116,6 +120,7 @@ export async function resolveDoubt(doubtId: string, resolved: boolean): Promise<
 // Teacher marks a reply as the accepted answer (also resolves the doubt).
 export async function acceptReply(replyId: string): Promise<ActionResult> {
   const user = await requireUser();
+  await assertNotImpersonating();
   const reply = await db.doubtReply.findFirst({
     where: { id: replyId, deletedAt: null },
     select: { id: true, doubtId: true, doubt: { select: { course: { select: { teacherId: true } } } } },
@@ -136,6 +141,7 @@ export async function acceptReply(replyId: string): Promise<ActionResult> {
 
 export async function deleteDoubt(doubtId: string): Promise<ActionResult> {
   const user = await requireUser();
+  await assertNotImpersonating();
   const doubt = await db.doubt.findFirst({
     where: { id: doubtId, deletedAt: null },
     select: { id: true, authorId: true, course: { select: { teacherId: true } } },
@@ -158,6 +164,7 @@ const commentSchema = z.object({
 
 export async function postComment(values: unknown): Promise<ActionResult> {
   const user = await requireUser();
+  await assertNotImpersonating();
   const parsed = commentSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const { resourceId, body } = parsed.data;
@@ -187,6 +194,7 @@ export async function postComment(values: unknown): Promise<ActionResult> {
 
 export async function deleteComment(commentId: string): Promise<ActionResult> {
   const user = await requireUser();
+  await assertNotImpersonating();
   const comment = await db.comment.findFirst({
     where: { id: commentId, deletedAt: null },
     select: { id: true, resourceId: true, authorId: true },
@@ -209,6 +217,7 @@ const feedbackSchema = z.object({
 
 export async function submitFeedback(values: unknown): Promise<ActionResult> {
   const student = await requireRole("STUDENT");
+  await assertNotImpersonating();
   const parsed = feedbackSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const { courseId, rating, comment } = parsed.data;
