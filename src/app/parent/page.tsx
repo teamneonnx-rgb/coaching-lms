@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Users, CalendarCheck, Award, IndianRupee } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { db } from "@/lib/db";
@@ -11,9 +12,19 @@ import { MonthlyFeedbackForm } from "@/components/parent/monthly-feedback-form";
 
 export const metadata: Metadata = { title: "Parent Portal" };
 
-export default async function ParentDashboard() {
+export default async function ParentDashboard({
+  searchParams,
+}: {
+  searchParams: Promise<{ ward?: string }>;
+}) {
   const parent = await requireRole("PARENT");
-  const children = await getParentChildren(parent.id);
+  const allChildren = await getParentChildren(parent.id);
+  const sp = await searchParams;
+
+  // FR-PA-06: a parent with multiple wards switches between them; every screen
+  // scopes to the selected ward.
+  const activeWardId = allChildren.some((c) => c.id === sp.ward) ? sp.ward : allChildren[0]?.id;
+  const children = allChildren.filter((c) => c.id === activeWardId);
 
   // FR-PA-03: fee status per ward — paid, pending, due dates, history.
   const feesByChild = new Map<string, Awaited<ReturnType<typeof getStudentPayments>>>();
@@ -57,11 +68,31 @@ export default async function ParentDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Your children</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Attendance and marks (read-only).</p>
+        <h1 className="text-2xl font-semibold text-slate-900">
+          {children[0]?.name ?? "Your children"}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">Attendance, results, fees (read-only).</p>
       </div>
 
-      {children.length === 0 ? (
+      {/* FR-PA-06: ward switcher */}
+      {allChildren.length > 1 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Ward:</span>
+          {allChildren.map((c) => (
+            <Link
+              key={c.id}
+              href={`/parent?ward=${c.id}`}
+              className={`rounded-full px-3 py-1 text-xs font-medium ${
+                c.id === activeWardId ? "bg-pink-500 text-white" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              }`}
+            >
+              {c.name}
+            </Link>
+          ))}
+        </div>
+      ) : null}
+
+      {allChildren.length === 0 ? (
         <EmptyState
           icon={Users}
           title="No linked students"

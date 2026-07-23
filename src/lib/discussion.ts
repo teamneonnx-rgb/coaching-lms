@@ -98,6 +98,59 @@ export async function getStudentFeedback(courseId: string, studentId: string) {
   });
 }
 
+// FR-AD-22/23: admin feedback inbox — all student + parent feedback, filterable
+// by teacher, batch, submitter role and period. Course feedback resolves its
+// teacher through the course; parent feedback carries targetTeacherId + wardId.
+export async function getFeedbackInbox(filter: {
+  teacherId?: string;
+  batchId?: string;
+  role?: string;
+  period?: string;
+} = {}) {
+  const rows = await db.feedback.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 200,
+    include: {
+      student: { select: { name: true, role: true } },
+      course: {
+        select: {
+          title: true,
+          teacher: { select: { id: true, name: true } },
+          batches: { select: { batch: { select: { id: true, name: true } } } },
+        },
+      },
+    },
+  });
+
+  const items = rows.map((f) => {
+    const teacherId = f.course?.teacher.id ?? f.targetTeacherId ?? null;
+    const teacherName = f.course?.teacher.name ?? null;
+    const batches = f.course?.batches.map((b) => b.batch) ?? [];
+    return {
+      id: f.id,
+      rating: f.rating,
+      comment: f.comment,
+      byRole: f.givenByRole,
+      byName: f.student.name ?? "User",
+      period: f.period,
+      createdAt: f.createdAt,
+      target: f.course?.title ?? "Teacher",
+      teacherId,
+      teacherName,
+      batchIds: batches.map((b) => b.id),
+      batchNames: batches.map((b) => b.name),
+    };
+  });
+
+  return items.filter((i) => {
+    if (filter.teacherId && i.teacherId !== filter.teacherId) return false;
+    if (filter.batchId && !i.batchIds.includes(filter.batchId)) return false;
+    if (filter.role && i.byRole !== filter.role) return false;
+    if (filter.period && i.period !== filter.period) return false;
+    return true;
+  });
+}
+
 // Aggregate rating for a course — shown to the teacher.
 export async function getCourseFeedbackSummary(courseId: string) {
   const [agg, rows] = await Promise.all([
