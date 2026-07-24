@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireUser } from "@/lib/session";
@@ -27,6 +28,7 @@ const markTeacherSchema = z.object({
 // Routed through the same approval queue (FR-AD-46).
 export async function markTeacherAttendance(values: unknown): Promise<ActionResult> {
   const admin = await requireUser();
+  await assertNotImpersonating();
   if (!(await hasCapability(admin, "TEACHER_ATTENDANCE"))) {
     return { ok: false, error: "403 — missing capability TEACHER_ATTENDANCE" };
   }
@@ -81,6 +83,7 @@ export async function markTeacherAttendance(values: unknown): Promise<ActionResu
 // student's parents — only now, never at submission.
 export async function approveAttendance(ids: string[]): Promise<ActionResult> {
   const admin = await requireUser();
+  await assertNotImpersonating();
   if (!ids.length) return { ok: false, error: "Nothing to approve" };
 
   const rows = await db.attendance.findMany({
@@ -139,6 +142,7 @@ const amendSchema = z.object({
 // record afterwards. Amendments are audit-logged with before/after values.
 export async function amendAttendance(values: unknown): Promise<ActionResult> {
   const admin = await requireUser();
+  await assertNotImpersonating();
   const parsed = amendSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { id, status } = parsed.data;

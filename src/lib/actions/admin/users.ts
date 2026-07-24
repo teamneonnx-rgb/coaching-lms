@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { Prisma, type Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
@@ -25,6 +26,7 @@ const BCRYPT_ROUNDS = 12; // FR-AUTH-03
 // SUPER_ADMIN        → never creatable (singleton, FR-SA-00 — transfer only)
 async function assertCanManageAccount(targetRole: Role) {
   const actor = await requireUser();
+  await assertNotImpersonating();
   if (targetRole === "SUPER_ADMIN") throw new Error("Super Admin is a single-person role — it can only be transferred");
   if (actor.role === "SUPER_ADMIN") return actor;
   if (actor.role !== "ADMIN") throw new Error("403 — not authorized");
@@ -204,6 +206,7 @@ export async function restoreUser(id: string): Promise<ActionResult> {
 // PASSWORD_RESET capability; the account is forced to change it on next login.
 export async function resetUserPassword(id: string): Promise<ActionResult & { tempPassword?: string }> {
   const actor = await requireUser();
+  await assertNotImpersonating();
   if (!(await hasCapability(actor, "PASSWORD_RESET"))) {
     return { ok: false, error: "403 — missing capability PASSWORD_RESET" };
   }
@@ -231,6 +234,7 @@ export async function resetUserPassword(id: string): Promise<ActionResult & { te
 // FR-AU-05: unlock a locked account (Admin with PASSWORD_RESET, or Super Admin).
 export async function unlockUser(id: string): Promise<ActionResult> {
   const actor = await requireUser();
+  await assertNotImpersonating();
   if (!(await hasCapability(actor, "PASSWORD_RESET"))) {
     return { ok: false, error: "403 — missing capability PASSWORD_RESET" };
   }

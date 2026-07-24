@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { assertNotImpersonating } from "@/lib/impersonation";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireRole } from "@/lib/session";
@@ -17,6 +18,7 @@ const schema = z.object({
 // IT is the ONLY role that can touch ErrorLog — it has no business write path.
 export async function resolveError(values: unknown): Promise<ActionResult> {
   const it = await requireRole("IT");
+  await assertNotImpersonating();
   const parsed = schema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { id, resolved, note } = parsed.data;
