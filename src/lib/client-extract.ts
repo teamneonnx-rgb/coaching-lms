@@ -4,30 +4,72 @@
 const EMAIL = /[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i;
 const PHONE = /(\+?\d[\d\s-]{7,}\d)/;
 
-// Turn loosely-structured extracted text into import rows. Each non-empty line
-// is scanned for an email + phone; the remainder becomes the name. The preview
-// screen lets the admin correct anything the heuristic got wrong.
+// Lines that are just a column label, not data.
+const HEADER_LABEL = /^(name|full ?name|student(\s*name)?|e-?mail|email ?id|phone|mobile|contact|no\.?|sr\.?|s\.?no\.?|parent|guardian)$/i;
+
+// Turn loosely-structured extracted text into import rows.
+//
+// Two shapes have to work:
+//  1. One student per line — "Kabir Nair  kabir@x.com  +9190…" (typical PDF).
+//  2. One FIELD per line — Word tables come out of mammoth with every cell on
+//     its own line, so a student is spread across 2–3 consecutive lines.
+//
+// So we build records incrementally instead of parsing line-by-line: an email
+// anchors a record, a bare phone attaches to it, and plain text becomes the
+// name. Hitting a second email (or new plain text after one) flushes the
+// record. The preview screen lets the admin fix anything this gets wrong.
 export function looseTextToCsv(text: string): string {
   const header = "name,email,parentName,parentPhone,parentEmail";
   const lines = text
     .split(/\r?\n/)
-    .map((l) => l.replace(/\t/g, " ").trim())
-    .filter((l) => l.length > 0);
+    .map((l) => l.replace(/\t/g, " ").replace(/\s{2,}/g, " ").trim())
+    .filter((l) => l.length > 0 && !HEADER_LABEL.test(l));
 
-  const rows: string[] = [];
+  type Rec = { name: string; email: string; phone: string };
+  const records: Rec[] = [];
+  let cur: Rec = { name: "", email: "", phone: "" };
+  const isEmpty = (r: Rec) => !r.name && !r.email && !r.phone;
+  const flush = () => {
+    if (r_hasData(cur)) records.push(cur);
+    cur = { name: "", email: "", phone: "" };
+  };
+  const r_hasData = (r: Rec) => Boolean(r.email || (r.name && r.phone));
+
   for (const line of lines) {
     const email = line.match(EMAIL)?.[0] ?? "";
-    const phone = line.match(PHONE)?.[0]?.replace(/\s+/g, "") ?? "";
-    // Skip obvious header/label lines.
-    if (/^(name|student|email|phone|parent)\b/i.test(line) && !email) continue;
-    let name = line;
-    if (email) name = name.replace(email, "");
-    if (phone) name = name.replace(line.match(PHONE)?.[0] ?? "", "");
-    name = name.replace(/[,;|]+/g, " ").replace(/\s{2,}/g, " ").trim();
-    if (!email && !name) continue;
-    const cell = (v: string) => v.replaceAll(",", " ");
-    rows.push([cell(name), cell(email), "", cell(phone), ""].join(","));
+    const phoneRaw = line.match(PHONE)?.[0] ?? "";
+    const phone = phoneRaw.replace(/[\s-]/g, "");
+
+    if (email) {
+      // A second email means the previous record is complete.
+      if (cur.email) flush();
+      let rest = line.replace(email, "");
+      if (phoneRaw) rest = rest.replace(phoneRaw, "");
+      rest = rest.replace(/[,;|]+/g, " ").replace(/\s{2,}/g, " ").trim();
+      cur.email = email;
+      if (rest) cur.name = rest; // same-line name wins; otherwise keep the one above
+      if (phone) cur.phone = phone;
+      continue;
+    }
+
+    // A line that is only a phone number attaches to the record in progress.
+    if (phoneRaw && !line.replace(phoneRaw, "").replace(/[,;|\s]+/g, "")) {
+      cur.phone = phone;
+      continue;
+    }
+
+    // Plain text = a name. If we already have an email, this starts a new record.
+    const name = line.replace(/[,;|]+/g, " ").replace(/\s{2,}/g, " ").trim();
+    if (!name) continue;
+    if (cur.email) flush();
+    else if (!isEmpty(cur) && cur.phone) flush(); // name+phone pair already closed
+    cur.name = name;
+    if (phone) cur.phone = phone;
   }
+  flush();
+
+  const cell = (v: string) => v.replaceAll(",", " ");
+  const rows = records.map((r) => [cell(r.name), cell(r.email), "", cell(r.phone), ""].join(","));
   return [header, ...rows].join("\n");
 }
 
