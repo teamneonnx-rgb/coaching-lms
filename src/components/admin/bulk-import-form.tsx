@@ -84,11 +84,31 @@ export function BulkImportForm({ batches }: { batches: { id: string; name: strin
   const [result, setResult] = useState<ImportResult | null>(null);
   const [isPending, startTransition] = useTransition();
 
+  const [extracting, setExtracting] = useState(false);
+
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    // FR-AD-29/31: PDF/DOC are text-extracted, then parsed into rows; the
+    // preview lets the admin correct anything the heuristic missed.
     if (/\.(pdf|docx?)$/i.test(file.name)) {
-      toast.error("PDF/DOC parsing isn't enabled yet — export to CSV and upload that.");
+      setExtracting(true);
+      try {
+        const { extractTextFromFile, looseTextToCsv } = await import("@/lib/client-extract");
+        const text = await extractTextFromFile(file);
+        const csv = looseTextToCsv(text);
+        setRaw(csv);
+        const parsed = parse(csv);
+        if (parsed.length === 0) { toast.error("Couldn't find any rows in that file"); return; }
+        setRows(parsed);
+        setStage("preview");
+        toast.success(`Extracted ${parsed.length} row(s) — review before committing`);
+      } catch (err) {
+        console.error(err);
+        toast.error("Couldn't read that file — try exporting to CSV");
+      } finally {
+        setExtracting(false);
+      }
       return;
     }
     setRaw(await file.text());
@@ -114,21 +134,36 @@ export function BulkImportForm({ batches }: { batches: { id: string; name: strin
   const valid = rows.filter((r) => r._errors.length === 0);
   const invalid = rows.filter((r) => r._errors.length > 0);
 
+  // NFR-04: commit in chunks so a 2,000+ row import never hits a single-request
+  // timeout; progress is shown as batches complete.
+  const CHUNK = 100;
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
   function commit() {
     // FR-AD-33/34: only valid rows are written; nothing was written at preview.
     // Strip commas from fields (the server parser splits on comma and isn't
     // quote-aware) — validated values never legitimately contain commas.
     const cell = (v: string) => (v ?? "").replaceAll(",", " ");
-    const csv =
-      HEADERS.join(",") + "\n" +
-      valid.map((r) => HEADERS.map((h) => cell(r[h])).join(",")).join("\n");
+    const toCsv = (batch: Row[]) =>
+      HEADERS.join(",") + "\n" + batch.map((r) => HEADERS.map((h) => cell(r[h])).join(",")).join("\n");
+
     startTransition(async () => {
-      const res = await bulkImportStudents({ csv, batchId: batchId === "none" ? undefined : batchId });
-      if (!res.ok) { toast.error(res.error ?? "Import failed"); return; }
-      setResult(res);
+      const created: NonNullable<ImportResult["created"]> = [];
+      const skipped: NonNullable<ImportResult["skipped"]> = [];
+      setProgress({ done: 0, total: valid.length });
+      for (let i = 0; i < valid.length; i += CHUNK) {
+        const batch = valid.slice(i, i + CHUNK);
+        const res = await bulkImportStudents({ csv: toCsv(batch), batchId: batchId === "none" ? undefined : batchId });
+        if (!res.ok) { toast.error(res.error ?? "Import failed"); setProgress(null); return; }
+        created.push(...(res.created ?? []));
+        skipped.push(...(res.skipped ?? []));
+        setProgress({ done: Math.min(i + CHUNK, valid.length), total: valid.length });
+      }
+      setProgress(null);
+      setResult({ ok: true, created, skipped });
       setStage("upload");
       setRaw(""); setRows([]);
-      toast.success(`Imported ${res.created?.length ?? 0} student(s)`);
+      toast.success(`Imported ${created.length} student(s)`);
       router.refresh();
     });
   }
@@ -182,7 +217,8 @@ export function BulkImportForm({ batches }: { batches: { id: string; name: strin
 
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={commit} disabled={isPending || valid.length === 0} className="bg-blue-600 text-white hover:bg-blue-600/90">
-            {isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />} Commit {valid.length} valid row(s)
+            {isPending ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+            {progress ? `Importing ${progress.done}/${progress.total}…` : `Commit ${valid.length} valid row(s)`}
           </Button>
           {invalid.length > 0 ? (
             <Button variant="outline" onClick={() => download("import-errors.csv", HEADERS.join(",") + ",errors\n" + invalid.map((r) => HEADERS.map((h) => `"${r[h] ?? ""}"`).join(",") + `,"${r._errors.join("; ")}"`).join("\n"))}>
@@ -201,7 +237,8 @@ export function BulkImportForm({ batches }: { batches: { id: string; name: strin
         <Button variant="outline" size="sm" onClick={() => download("student-import-template.csv", TEMPLATE)}>
           <FileSpreadsheet className="size-4" /> Download template
         </Button>
-        <Input type="file" accept=".csv,text/csv" onChange={onFile} className="h-9 w-fit text-xs" />
+        <Input type="file" accept=".csv,text/csv,.pdf,.doc,.docx" onChange={onFile} disabled={extracting} className="h-9 w-fit text-xs" />
+        {extracting ? <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Loader2 className="size-3.5 animate-spin" /> Extracting…</span> : null}
       </div>
 
       <div className="grid gap-1.5">
@@ -214,7 +251,7 @@ export function BulkImportForm({ batches }: { batches: { id: string; name: strin
       <Button onClick={preview} disabled={raw.trim().length === 0} className="bg-blue-600 text-white hover:bg-blue-600/90">
         Parse &amp; preview
       </Button>
-      <p className="text-xs text-muted-foreground">Nothing is saved until you confirm the preview. PDF/DOC upload is coming — export to CSV for now.</p>
+      <p className="text-xs text-muted-foreground">Upload CSV, PDF or DOC/DOCX — files are text-extracted into a preview you can correct. Nothing is saved until you confirm. Large lists commit in batches.</p>
 
       {result ? (
         <div className="space-y-4 pt-2">
