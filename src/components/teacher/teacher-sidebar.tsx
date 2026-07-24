@@ -52,7 +52,7 @@ export function TeacherSidebar({
         <span className="text-sm font-semibold tracking-tight">Coaching LMS</span>
       </div>
 
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-3">
         {NAV.map(({ href, label, icon: Icon }) => {
           const active = href === "/teacher" ? pathname === href : pathname.startsWith(href);
           return (
