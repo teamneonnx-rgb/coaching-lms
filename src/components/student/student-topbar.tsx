@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { Button } from "@/components/ui/button";
 import { StudentSidebar } from "@/components/student/student-sidebar";
 import { NotificationBell } from "@/components/admin/notification-bell";
+import { HeaderSearch } from "@/components/header-search";
 
 export function StudentTopbar({
   user,
@@ -35,7 +36,10 @@ export function StudentTopbar({
           <span className="text-sm font-semibold text-slate-900">Coaching LMS</span>
         </div>
       </div>
-      <NotificationBell />
+      <div className="flex items-center gap-2">
+        <HeaderSearch action="/student/search" placeholder="Search courses, doubts…" />
+        <NotificationBell />
+      </div>
     </header>
   );
 }

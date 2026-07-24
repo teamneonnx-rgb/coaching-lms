@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { Button } from "@/components/ui/button";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { NotificationBell } from "@/components/admin/notification-bell";
+import { HeaderSearch } from "@/components/header-search";
 
 // Sticky top bar for the admin shell: mobile hamburger (Sheet) + brand on the
 // left, the SWR-polling notification bell on the right (all sizes).
@@ -42,7 +43,10 @@ export function AdminHeader({
         </div>
       </div>
 
-      <NotificationBell />
+      <div className="flex items-center gap-2">
+        <HeaderSearch action="/admin/search" placeholder="Search users, batches…" />
+        <NotificationBell />
+      </div>
     </header>
   );
 }
