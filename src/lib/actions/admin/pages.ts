@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { requireCapability } from "@/lib/capabilities";
 import { DEFAULT_INSTITUTE_ID } from "@/lib/settings";
 import { logAudit } from "@/lib/audit";
+import { blockTreeSchema } from "@/lib/pages/types";
 
 export type ActionResult = { ok: boolean; error?: string; info?: string };
 
@@ -75,6 +76,34 @@ export async function createPage(values: unknown): Promise<ActionResult & { id?:
 
   revalidatePath("/admin/pages");
   return { ok: true, id: page.id };
+}
+
+const saveDraftSchema = z.object({ id: z.string().min(1), blocks: blockTreeSchema });
+
+// Autosave: persists the working block tree. Validated so an unknown block type
+// or malformed tree can never be stored.
+export async function savePageDraft(values: unknown): Promise<ActionResult> {
+  let ctx;
+  try {
+    ctx = await requireBuilder();
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Not authorized" };
+  }
+  const parsed = saveDraftSchema.safeParse(values);
+  if (!parsed.success) return { ok: false, error: "Invalid page content" };
+
+  const page = await db.page.findFirst({
+    where: { id: parsed.data.id, instituteId: ctx.instituteId, deletedAt: null },
+    select: { id: true },
+  });
+  if (!page) return { ok: false, error: "Page not found" };
+
+  await db.page.update({
+    where: { id: page.id },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Prisma Json input
+    data: { draftBlocks: parsed.data.blocks as any, updatedById: ctx.actor.id },
+  });
+  return { ok: true };
 }
 
 const renameSchema = z.object({ id: z.string().min(1), name: z.string().trim().min(1).max(120) });
