@@ -3,8 +3,10 @@ import { Plug } from "lucide-react";
 import { requireAdminArea } from "@/lib/session";
 import { db } from "@/lib/db";
 import { getIntegrationStatus, DEFAULT_INSTITUTE_ID } from "@/lib/settings";
+import { getBranding } from "@/lib/branding";
 import { PageHeader } from "@/components/admin/page-header";
 import { IntegrationSettings } from "@/components/admin/integration-settings";
+import { BrandingSettings } from "@/components/admin/branding-settings";
 
 export const metadata: Metadata = { title: "Control Center" };
 
@@ -14,7 +16,19 @@ export default async function ControlCenterPage() {
     where: { id: admin.id },
     select: { instituteId: true },
   });
-  const status = await getIntegrationStatus(actor?.instituteId ?? DEFAULT_INSTITUTE_ID);
+  const instituteId = actor?.instituteId ?? DEFAULT_INSTITUTE_ID;
+  const status = await getIntegrationStatus(instituteId);
+  const isSuperAdmin = admin.role === "SUPER_ADMIN";
+
+  // Raw stored branding for the editor (blank when unset, so placeholders show
+  // the defaults and "leave blank to restore default" behaves correctly). Colour
+  // uses the resolved value so the picker always starts on a valid hex.
+  const brand = await getBranding(instituteId);
+  const brandRows = await db.setting.findMany({
+    where: { instituteId, key: { in: ["brand.name", "brand.tagline", "brand.logoUrl"] } },
+    select: { key: true, value: true },
+  });
+  const bm = Object.fromEntries(brandRows.map((r) => [r.key, r.value]));
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -30,6 +44,16 @@ export default async function ControlCenterPage() {
           <span className="font-medium"> Configured</span>, the app uses it automatically.
         </p>
       </div>
+      {isSuperAdmin && (
+        <BrandingSettings
+          initial={{
+            name: bm["brand.name"] ?? "",
+            tagline: bm["brand.tagline"] ?? "",
+            logoUrl: bm["brand.logoUrl"] ?? "",
+            color: brand.color,
+          }}
+        />
+      )}
       <IntegrationSettings status={status} />
     </div>
   );

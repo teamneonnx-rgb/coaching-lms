@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/logout-button";
+import { BrandMark, type Brand } from "@/components/brand-mark";
 import type { CapabilityKey } from "@/lib/capabilities-shared";
 
 // FR-PM-01: each item declares the capabilities that unlock it (any-of).
@@ -58,11 +59,13 @@ const NAV: NavItem[] = [
 
 export function AdminSidebar({
   user,
+  brand,
   role,
   capabilities = [],
   onNavigate,
 }: {
   user: { name?: string | null; email?: string | null };
+  brand: Brand;
   role?: string;
   capabilities?: CapabilityKey[];
   onNavigate?: () => void;
@@ -78,11 +81,8 @@ export function AdminSidebar({
 
   return (
     <div className="flex h-full w-64 flex-col bg-slate-900 text-slate-100">
-      <div className="flex items-center gap-2 px-5 py-5">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-          <GraduationCap className="size-5" />
-        </span>
-        <span className="text-sm font-semibold tracking-tight">Coaching LMS</span>
+      <div className="px-5 py-5">
+        <BrandMark brand={brand} size="md" />
       </div>
 
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-3">

@@ -1,14 +1,13 @@
 import Link from "next/link";
-import { GraduationCap } from "lucide-react";
+import { getBranding } from "@/lib/branding";
+import { BrandMark } from "@/components/brand-mark";
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  const brand = await getBranding();
   return (
     <div className="flex min-h-screen flex-1 flex-col items-center justify-center bg-slate-50 px-4 py-10">
-      <Link href="/" className="mb-6 flex items-center gap-2 text-slate-900">
-        <span className="flex size-9 items-center justify-center rounded-lg bg-blue-600 text-white">
-          <GraduationCap className="size-5" />
-        </span>
-        <span className="text-lg font-semibold tracking-tight">Coaching Institute LMS</span>
+      <Link href="/" className="mb-6 text-slate-900">
+        <BrandMark brand={brand} size="lg" nameClassName="text-lg font-semibold tracking-tight" />
       </Link>
       {children}
     </div>

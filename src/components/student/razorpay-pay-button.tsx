@@ -16,7 +16,7 @@ declare global {
 // Loads checkout.js on demand, opens Razorpay checkout for the fee's
 // outstanding amount (derived server-side), then verifies the signature
 // server-side before anything is marked paid.
-export function RazorpayPayButton({ paymentId, label }: { paymentId: string; label: string }) {
+export function RazorpayPayButton({ paymentId, label, brandName = "Coaching LMS" }: { paymentId: string; label: string; brandName?: string }) {
   const router = useRouter();
   const [isPending, start] = useTransition();
   const [opening, setOpening] = useState(false);
@@ -50,7 +50,7 @@ export function RazorpayPayButton({ paymentId, label }: { paymentId: string; lab
           order_id: order.orderId,
           amount: order.amountPaise,
           currency: "INR",
-          name: "Coaching LMS",
+          name: brandName,
           description: label,
           handler: (response: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
             void (async () => {

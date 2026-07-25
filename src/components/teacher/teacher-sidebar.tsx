@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  GraduationCap,
   LayoutDashboard,
   CalendarCheck,
   ClipboardList,
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LogoutButton } from "@/components/logout-button";
+import { BrandMark, type Brand } from "@/components/brand-mark";
 
 type NavItem = { href: string; label: string; icon: LucideIcon };
 
@@ -34,20 +34,19 @@ const NAV: NavItem[] = [
 
 export function TeacherSidebar({
   user,
+  brand,
   onNavigate,
 }: {
   user: { name?: string | null; email?: string | null };
+  brand: Brand;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
 
   return (
     <div className="flex h-full w-64 flex-col border-r border-slate-200 bg-slate-800 text-slate-100">
-      <div className="flex items-center gap-2 px-5 py-5">
-        <span className="flex size-8 items-center justify-center rounded-lg bg-teal-600 text-white">
-          <GraduationCap className="size-5" />
-        </span>
-        <span className="text-sm font-semibold tracking-tight">Coaching LMS</span>
+      <div className="px-5 py-5">
+        <BrandMark brand={brand} size="md" />
       </div>
 
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 pb-3">

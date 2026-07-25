@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { ImpersonationBanner } from "@/components/impersonation-banner";
+import { getBranding } from "@/lib/branding";
 import "./globals.css";
 
 const inter = Inter({
@@ -14,14 +15,17 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Coaching Institute LMS",
-    template: "%s | Coaching Institute LMS",
-  },
-  description:
-    "Multi-tenant Learning Management System for coaching institutes — batches, courses, assessments, attendance, and notifications.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const brand = await getBranding();
+  return {
+    title: {
+      default: brand.name,
+      template: `%s | ${brand.name}`,
+    },
+    description:
+      "Multi-tenant Learning Management System for coaching institutes — batches, courses, assessments, attendance, and notifications.",
+  };
+}
 
 export default function RootLayout({
   children,

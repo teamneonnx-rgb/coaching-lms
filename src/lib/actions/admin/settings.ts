@@ -11,6 +11,7 @@ export type ActionResult = { ok: boolean; error?: string; info?: string };
 
 // Allowed setting keys per section (whitelist — never store arbitrary keys).
 const SECTION_KEYS: Record<string, string[]> = {
+  branding: ["brand.name", "brand.tagline", "brand.logoUrl", "brand.color"],
   razorpay: ["razorpay.keyId", "razorpay.keySecret", "razorpay.mode", "razorpay.enabled"],
   whatsapp: [
     "whatsapp.phoneNumberId",
@@ -31,7 +32,7 @@ const SECRET_KEYS = new Set([
 ]);
 
 const schema = z.object({
-  section: z.enum(["razorpay", "whatsapp", "email", "sms"]),
+  section: z.enum(["branding", "razorpay", "whatsapp", "email", "sms"]),
   values: z.record(z.string(), z.string()),
 });
 

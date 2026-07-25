@@ -3,6 +3,7 @@ import { IndianRupee } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { getStudentPayments, computeStatus } from "@/lib/payments";
 import { getRazorpayConfig } from "@/lib/razorpay";
+import { getBranding } from "@/lib/branding";
 import { formatDate } from "@/lib/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -21,9 +22,10 @@ const STATUS_STYLE: Record<string, string> = {
 // admin has enabled Razorpay in the Control Center.
 export default async function StudentFeesPage() {
   const user = await requireRole("STUDENT");
-  const [payments, razorpay] = await Promise.all([
+  const [payments, razorpay, brand] = await Promise.all([
     getStudentPayments(user.id),
     getRazorpayConfig(),
+    getBranding(),
   ]);
   const onlineEnabled = !!razorpay;
 
@@ -65,7 +67,7 @@ export default async function StudentFeesPage() {
                         {status}
                       </span>
                       {onlineEnabled && outstanding > 0 ? (
-                        <RazorpayPayButton paymentId={p.id} label={p.title} />
+                        <RazorpayPayButton paymentId={p.id} label={p.title} brandName={brand.name} />
                       ) : null}
                     </div>
                   </li>

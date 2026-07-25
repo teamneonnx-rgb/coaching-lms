@@ -4,6 +4,7 @@ import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/notifications/email";
+import { getBranding } from "@/lib/branding";
 
 export type ActionResult = { ok: boolean; error?: string; info?: string };
 
@@ -32,9 +33,10 @@ export async function requestPasswordReset(email: string): Promise<ActionResult>
 
   const base = process.env.AUTH_URL || process.env.NEXT_PUBLIC_APP_URL || "";
   const link = `${base}/reset-password?uid=${user.id}&token=${token}`;
+  const { name: brandName } = await getBranding();
   await sendEmail({
     to: clean,
-    subject: "Reset your Coaching LMS password",
+    subject: `Reset your ${brandName} password`,
     html: `<p>Hello ${user.name ?? ""},</p><p>Click the link below to reset your password (valid for 1 hour):</p><p><a href="${link}">${link}</a></p><p>If you didn't request this, you can ignore this email.</p>`,
   });
   // Visible in server logs when Resend isn't configured (dev / self-host).

@@ -1,21 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { Menu, GraduationCap } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { NotificationBell } from "@/components/admin/notification-bell";
 import { HeaderSearch } from "@/components/header-search";
+import { BrandMark, type Brand } from "@/components/brand-mark";
 
 // Sticky top bar for the admin shell: mobile hamburger (Sheet) + brand on the
 // left, the SWR-polling notification bell on the right (all sizes).
 export function AdminHeader({
   user,
+  brand,
   role,
   capabilities = [],
 }: {
   user: { name?: string | null; email?: string | null };
+  brand: Brand;
   role?: string;
   capabilities?: import("@/lib/capabilities-shared").CapabilityKey[];
 }) {
@@ -32,14 +35,11 @@ export function AdminHeader({
           </SheetTrigger>
           <SheetContent side="left" className="w-64 border-0 p-0">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
-            <AdminSidebar user={user} role={role} capabilities={capabilities} onNavigate={() => setOpen(false)} />
+            <AdminSidebar user={user} brand={brand} role={role} capabilities={capabilities} onNavigate={() => setOpen(false)} />
           </SheetContent>
         </Sheet>
-        <div className="flex items-center gap-2 lg:hidden">
-          <span className="flex size-7 items-center justify-center rounded-md bg-blue-600 text-white">
-            <GraduationCap className="size-4" />
-          </span>
-          <span className="text-sm font-semibold text-slate-900">Coaching LMS</span>
+        <div className="lg:hidden">
+          <BrandMark brand={brand} size="sm" nameClassName="text-sm font-semibold text-slate-900" />
         </div>
       </div>
 

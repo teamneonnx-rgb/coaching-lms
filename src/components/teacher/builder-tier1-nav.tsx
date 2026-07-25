@@ -4,7 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTransition } from "react";
 import {
-  GraduationCap,
   LayoutDashboard,
   CalendarCheck,
   ClipboardList,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logoutAction } from "@/lib/actions/auth";
+import { BrandMark, type Brand } from "@/components/brand-mark";
 
 type Item = { href: string; label: string; icon: LucideIcon };
 
@@ -24,15 +24,15 @@ const ITEMS: Item[] = [
 ];
 
 // Tier 1 — global icon nav (w-16) for the assessment builder (UI spec).
-export function BuilderTier1Nav() {
+export function BuilderTier1Nav({ brand }: { brand: Brand }) {
   const pathname = usePathname();
   const [isPending, startTransition] = useTransition();
 
   return (
     <nav className="flex h-screen w-16 shrink-0 flex-col items-center gap-2 bg-slate-800 py-4 text-slate-300">
-      <span className="mb-2 flex size-9 items-center justify-center rounded-lg bg-teal-600 text-white">
-        <GraduationCap className="size-5" />
-      </span>
+      <div className="mb-2">
+        <BrandMark brand={brand} size="lg" showName={false} />
+      </div>
       {ITEMS.map(({ href, label, icon: Icon }) => {
         const active =
           href === "/teacher/assessments"
