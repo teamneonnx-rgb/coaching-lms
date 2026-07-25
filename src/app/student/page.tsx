@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookOpen, PlayCircle, FileText, Layers, CalendarDays } from "lucide-react";
+import { BookOpen, PlayCircle, FileText, Layers, CalendarDays, IndianRupee, ArrowRight } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { db } from "@/lib/db";
 import {
@@ -14,6 +14,15 @@ import { ProgressDonut } from "@/components/student/progress-donut";
 import { StudentCalendar } from "@/components/student/student-calendar";
 
 export const metadata: Metadata = { title: "Dashboard" };
+
+const inr = (n: number) =>
+  new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(n);
+
+function greeting(hour: number) {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
 
 export default async function StudentDashboard() {
   const user = await requireRole("STUDENT");
@@ -34,7 +43,7 @@ export default async function StudentDashboard() {
     );
   }
 
-  const [progress, courses, recentResources] = await Promise.all([
+  const [progress, courses, recentResources, feeAgg] = await Promise.all([
     getStudentProgress(user.id, batch.id),
     getStudentCourses(user.id, batch.id),
     db.resource.findMany({
@@ -49,23 +58,49 @@ export default async function StudentDashboard() {
         chapter: { select: { course: { select: { title: true } } } },
       },
     }),
+    db.payment.aggregate({
+      _sum: { amountDue: true, amountPaid: true },
+      where: { studentId: user.id, status: { in: ["PENDING", "PARTIAL", "OVERDUE"] } },
+    }),
   ]);
 
   const videoCount = recentResources.filter((r) => r.type === "VIDEO").length;
   const eventDates = recentResources.map((r) => r.createdAt.toISOString().slice(0, 10));
+  const feesDue = Math.max(0, (feeAgg._sum.amountDue ?? 0) - (feeAgg._sum.amountPaid ?? 0));
+  const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
     <div className="flex flex-col xl:flex-row">
       {/* Main content */}
       <div className="flex-1 space-y-6 p-4 lg:p-8">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">
-            Hi {user.name?.split(" ")[0]} 👋
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            You&apos;re in <span className="font-medium text-slate-700">{batch.name}</span>. Keep going!
-          </p>
-        </div>
+        {/* Greeting banner */}
+        <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-orange-500 via-orange-500 to-amber-600 p-6 text-white sm:p-8">
+          <div className="pointer-events-none absolute -right-8 -top-10 size-40 rounded-full bg-white/10" />
+          <div className="pointer-events-none absolute -bottom-16 right-24 size-40 rounded-full bg-white/5" />
+          <div className="relative flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-sm font-medium text-orange-100">{greeting(new Date().getHours())}, {user.name?.split(" ")[0]} 👋</p>
+              <h1 className="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">{batch.name}</h1>
+              <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-orange-100">
+                <span>{pct}% of your material complete</span>
+                {feesDue > 0 && (
+                  <>
+                    <span aria-hidden>·</span>
+                    <Link href="/student/fees" className="inline-flex items-center gap-1 font-medium text-white underline-offset-2 hover:underline">
+                      <IndianRupee className="size-3.5" />{inr(feesDue)} due
+                    </Link>
+                  </>
+                )}
+              </p>
+            </div>
+            <Link
+              href="/student/courses"
+              className="inline-flex w-fit items-center gap-2 rounded-lg bg-white px-3.5 py-2 text-sm font-medium text-orange-600 shadow-sm transition-colors hover:bg-orange-50"
+            >
+              Browse courses <ArrowRight className="size-4" />
+            </Link>
+          </div>
+        </section>
 
         {/* Progress + quick stats */}
         <div className="grid gap-4 md:grid-cols-3">
