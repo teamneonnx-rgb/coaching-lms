@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   CalendarCheck,
   SlidersHorizontal,
+  LayoutTemplate,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -52,6 +53,7 @@ const NAV: NavItem[] = [
   { href: "/admin/feedback", label: "Feedback", icon: MessagesSquare, needs: ["FEEDBACK_VIEW"] },
   { href: "/admin/approvals", label: "Approvals", icon: BadgeCheck, needs: ["DOCUMENT_APPROVE"] },
   { href: "/admin/import", label: "Bulk import", icon: Upload, needs: ["STUDENT_BULK_IMPORT"] },
+  { href: "/admin/pages", label: "Page builder", icon: LayoutTemplate, needs: ["PAGE_BUILDER"] },
   { href: "/admin/control-center", label: "Control Center", icon: SlidersHorizontal, superAdminOnly: true },
   { href: "/admin/access-control", label: "Access Control", icon: ShieldCheck, superAdminOnly: true },
   { href: "/admin/recycle-bin", label: "Recycle bin", icon: Trash2, needs: ["TEACHER_MANAGE", "STUDENT_MANAGE"] },

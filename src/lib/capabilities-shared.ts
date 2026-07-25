@@ -20,6 +20,7 @@ export const CAPABILITY_KEYS = [
   "SESSION_SUMMARY_UPLOAD",
   "REPORT_VIEW",
   "PASSWORD_RESET",
+  "PAGE_BUILDER",
 ] as const;
 
 export type CapabilityKey = (typeof CAPABILITY_KEYS)[number];
@@ -43,4 +44,5 @@ export const CAPABILITY_LABELS: Record<CapabilityKey, string> = {
   SESSION_SUMMARY_UPLOAD: "Publish per-day class session summaries to parent profiles",
   REPORT_VIEW: "View progress, class and batch reports",
   PASSWORD_RESET: "Reset passwords for other users",
+  PAGE_BUILDER: "Build and publish custom pages/dashboards with the drag-and-drop builder",
 };

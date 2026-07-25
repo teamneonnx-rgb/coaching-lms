@@ -268,6 +268,8 @@ model User {
   // Capability delegation (FR-SA-03, FR-PM-01/02)
   capabilities      AdminCapability[]  @relation("AdminCapabilities")
   grantedCapabilities AdminCapability[] @relation("GrantedCapabilities")
+  // No-code page builder — pages this admin last edited
+  editedPages       Page[]             @relation("PageEditor")
   // Parent ↔ student links (FR-PAR-1)
   childLinks        ParentLink[]       @relation("ParentOf") // rows where this user is the parent
   parentLinks       ParentLink[]       @relation("StudentOf") // rows where this user is the student
@@ -753,4 +755,52 @@ model Feedback {
 
   @@unique([courseId, studentId])
   @@index([courseId])
+}
+
+// ── No-code page/dashboard builder ─────────────────────────────────
+enum PageStatus {
+  DRAFT
+  PUBLISHED
+}
+
+// An Admin-authored screen. `draftBlocks` is the working copy; `publishedBlocks`
+// (+ `version`) is what assigned roles actually see. Blocks are a serialisable
+// JSON tree (shape lives in src/lib/pages/types.ts). Role scoping and live-data
+// binding happen at RENDER time — the JSON stores only widget types + props,
+// never data and never raw queries.
+model Page {
+  id              String       @id @default(cuid())
+  instituteId     String
+  name            String
+  slug            String
+  status          PageStatus   @default(DRAFT)
+  assignedRoles   Role[]       @default([])
+  draftBlocks     Json         @default("[]")
+  publishedBlocks Json?
+  version         Int          @default(0) // bumped on each publish
+  updatedById     String?
+  updatedBy       User?        @relation("PageEditor", fields: [updatedById], references: [id])
+  versions        PageVersion[]
+  deletedAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([instituteId, slug])
+  @@index([instituteId, status])
+}
+
+// Immutable snapshot written on every publish so a bad edit can be rolled back.
+model PageVersion {
+  id            String   @id @default(cuid())
+  pageId        String
+  page          Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  version       Int
+  blocks        Json
+  name          String
+  assignedRoles Role[]   @default([])
+  publishedById String?
+  createdAt     DateTime @default(now())
+
+  @@unique([pageId, version])
+  @@index([pageId])
 }
