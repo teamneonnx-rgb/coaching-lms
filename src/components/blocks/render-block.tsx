@@ -3,6 +3,7 @@
 import type { Block, Breakpoint } from "@/lib/pages/types";
 import { getBlockDef } from "@/lib/pages/registry";
 import { resolveProps } from "@/lib/pages/tree";
+import { WidgetPreview } from "@/components/blocks/widget-preview";
 
 // Plain recursive renderer (no editor chrome) — powers Preview mode now and the
 // published runtime later. Uses the same registry.render as the editor, so the
@@ -11,10 +12,11 @@ export function RenderBlock({ block, breakpoint }: { block: Block; breakpoint: B
   const def = getBlockDef(block.type);
   if (!def) return null;
   const props = resolveProps(block, breakpoint);
+  if (def.widget) return <WidgetPreview type={block.type} props={props} />;
   const children = def.isContainer
     ? (block.children ?? []).map((c) => <RenderBlock key={c.id} block={c} breakpoint={breakpoint} />)
     : undefined;
-  return <>{def.render({ props, children, mode: "runtime" })}</>;
+  return <>{def.render?.({ props, children, mode: "runtime" })}</>;
 }
 
 export function RenderTree({ tree, breakpoint }: { tree: Block[]; breakpoint: Breakpoint }) {

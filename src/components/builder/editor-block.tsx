@@ -5,6 +5,7 @@ import { GripVertical, Copy, Trash2 } from "lucide-react";
 import type { Block } from "@/lib/pages/types";
 import { getBlockDef } from "@/lib/pages/registry";
 import { resolveProps } from "@/lib/pages/tree";
+import { WidgetPreview } from "@/components/blocks/widget-preview";
 import { useEditorCtx } from "./editor-context";
 import { DropZone } from "./drop-zone";
 
@@ -91,7 +92,9 @@ export function EditorBlock({ block }: { block: Block }) {
         </button>
       </div>
 
-      {def.render({ props, children: childrenSlot, mode: "editor" })}
+      {def.widget
+        ? <WidgetPreview type={block.type} props={props} />
+        : def.render?.({ props, children: childrenSlot, mode: "editor" })}
     </div>
   );
 }
