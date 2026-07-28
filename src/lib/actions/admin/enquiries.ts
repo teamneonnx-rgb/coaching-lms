@@ -5,6 +5,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireCapability, hasCapability } from "@/lib/capabilities";
+import { getInstituteId } from "@/lib/session";
 import { sendWelcomeEmail } from "@/lib/notifications/events";
 import { logAudit } from "@/lib/audit";
 
@@ -28,6 +29,7 @@ export async function createEnquiry(values: unknown): Promise<ActionResult> {
 
   const created = await db.enquiry.create({
     data: {
+      instituteId: await getInstituteId(admin.id), // multi-tenant scope
       name: d.name,
       phone: d.phone || null,
       email: d.email?.toLowerCase() || null,

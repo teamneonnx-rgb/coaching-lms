@@ -17,7 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { getCapabilitySet } from "@/lib/capabilities";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -67,7 +67,7 @@ const ENQUIRY_TINT: Record<string, string> = {
 type Metric = { label: string; value: string; sub: string; icon: LucideIcon; tint: string };
 
 export default async function AdminDashboard() {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   const caps = await getCapabilitySet(user);
   const can = (k: Parameters<typeof caps.has>[0]) => caps.has(k);
   const canPayment = can("PAYMENT_VIEW");
@@ -92,23 +92,24 @@ export default async function AdminDashboard() {
     overdueFees,
     recentEnquiries,
   ] = await Promise.all([
-    db.user.count({ where: { role: "STUDENT", deletedAt: null } }),
-    db.user.count({ where: { role: "TEACHER", deletedAt: null } }),
-    db.batch.count({ where: { deletedAt: null } }),
-    db.course.count({ where: { deletedAt: null } }),
-    db.user.findMany({ where: { deletedAt: null }, select: { createdAt: true } }),
+    db.user.count({ where: { role: "STUDENT", deletedAt: null, instituteId } }),
+    db.user.count({ where: { role: "TEACHER", deletedAt: null, instituteId } }),
+    db.batch.count({ where: { deletedAt: null, instituteId } }),
+    db.course.count({ where: { deletedAt: null, teacher: { instituteId } } }),
+    db.user.findMany({ where: { deletedAt: null, instituteId }, select: { createdAt: true } }),
     db.user.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, instituteId },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { id: true, name: true, role: true, createdAt: true },
     }),
-    db.payment.aggregate({ _sum: { amountPaid: true }, where: { paidOn: { gte: startOfMonth } } }),
-    db.attendance.count({ where: { approvalStatus: "PENDING" } }),
-    db.resource.count({ where: { approvalStatus: "PENDING" } }),
-    db.enquiry.count({ where: { status: "NEW" } }),
-    db.payment.count({ where: { status: "OVERDUE" } }),
+    db.payment.aggregate({ _sum: { amountPaid: true }, where: { paidOn: { gte: startOfMonth }, student: { instituteId } } }),
+    db.attendance.count({ where: { approvalStatus: "PENDING", user: { instituteId } } }),
+    db.resource.count({ where: { approvalStatus: "PENDING", chapter: { course: { teacher: { instituteId } } } } }),
+    db.enquiry.count({ where: { status: "NEW", instituteId } }),
+    db.payment.count({ where: { status: "OVERDUE", student: { instituteId } } }),
     db.enquiry.findMany({
+      where: { instituteId },
       orderBy: { createdAt: "desc" },
       take: 5,
       select: { id: true, name: true, interestedCourse: true, status: true, createdAt: true },

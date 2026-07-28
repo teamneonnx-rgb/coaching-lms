@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Inbox } from "lucide-react";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,11 +13,12 @@ export const metadata: Metadata = { title: "Enquiries" };
 // FR-AD-25..28: enquiry pipeline — list, status flow, notes, convert-to-student,
 // CSV export. Gated on ENQUIRY_VIEW; conversion also needs STUDENT_MANAGE.
 export default async function AdminEnquiriesPage() {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   if (!(await hasCapability(user, "ENQUIRY_VIEW"))) redirect("/admin");
   const canConvert = await hasCapability(user, "STUDENT_MANAGE");
 
   const enquiries = await db.enquiry.findMany({
+    where: { instituteId },
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
   });
 

@@ -31,8 +31,9 @@ export type PaymentWithStudent = Payment & {
   student: { id: string; name: string; email: string };
 };
 
-export async function getAllPayments(): Promise<PaymentWithStudent[]> {
+export async function getAllPayments(instituteId: string | null): Promise<PaymentWithStudent[]> {
   return db.payment.findMany({
+    where: { student: { instituteId } },
     orderBy: [{ status: "asc" }, { dueDate: "asc" }, { createdAt: "desc" }],
     include: { student: { select: { id: true, name: true, email: true } } },
   });
@@ -47,7 +48,7 @@ export async function getStudentPayments(studentId: string) {
 
 // FR-AD-21: collected this month, pending total, overdue count, batch-wise
 // collection breakdown.
-export async function getPaymentsDashboard() {
+export async function getPaymentsDashboard(instituteId: string | null) {
   await syncOverdueStatuses();
 
   const monthStart = new Date();
@@ -56,10 +57,11 @@ export async function getPaymentsDashboard() {
 
   const [payments, batches] = await Promise.all([
     db.payment.findMany({
+      where: { student: { instituteId } },
       include: { student: { select: { id: true } } },
     }),
     db.batch.findMany({
-      where: { deletedAt: null },
+      where: { deletedAt: null, instituteId },
       select: {
         id: true,
         name: true,

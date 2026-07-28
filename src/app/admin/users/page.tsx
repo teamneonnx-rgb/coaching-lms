@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Users as UsersIcon } from "lucide-react";
 import { db } from "@/lib/db";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import {
   Card,
   CardContent,
@@ -25,10 +25,10 @@ import { UserRowActions } from "@/components/admin/users/user-row-actions";
 export const metadata: Metadata = { title: "Users" };
 
 export default async function AdminUsersPage() {
-  const me = await requireAdminArea();
+  const { user: me, instituteId } = await requireAdminInstitute();
   const canImpersonate = me.role === "SUPER_ADMIN";
   const users = await db.user.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, instituteId },
     orderBy: [{ role: "asc" }, { createdAt: "desc" }],
     select: {
       id: true,

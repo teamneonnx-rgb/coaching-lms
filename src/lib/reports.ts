@@ -18,19 +18,20 @@ function avgScorePct(rows: { score: number | null; max: number | null }[]): numb
 }
 
 // ── Institute report (admin) ───────────────────────────────────────
-export async function getInstituteReport() {
+// Multi-tenant: everything scoped to the caller's institute.
+export async function getInstituteReport(instituteId: string | null) {
   const [students, teachers, batches, courses, attendanceRows, assessmentSubs, assignmentSubs, feedbackAgg, doubtsTotal, doubtsOpen] =
     await Promise.all([
-      db.user.count({ where: { role: "STUDENT", deletedAt: null } }),
-      db.user.count({ where: { role: "TEACHER", deletedAt: null } }),
-      db.batch.count({ where: { deletedAt: null } }),
-      db.course.count({ where: { deletedAt: null } }),
-      db.attendance.groupBy({ by: ["status"], where: { approvalStatus: { in: ["APPROVED", "AMENDED"] } }, _count: { _all: true } }),
-      db.submission.findMany({ where: { status: "GRADED" }, select: { score: true, maxScore: true } }),
-      db.assignmentSubmission.findMany({ where: { status: "GRADED" }, select: { score: true, assignment: { select: { totalMarks: true } } } }),
-      db.feedback.aggregate({ _avg: { rating: true }, _count: { _all: true } }),
-      db.doubt.count({ where: { deletedAt: null } }),
-      db.doubt.count({ where: { deletedAt: null, isResolved: false } }),
+      db.user.count({ where: { role: "STUDENT", deletedAt: null, instituteId } }),
+      db.user.count({ where: { role: "TEACHER", deletedAt: null, instituteId } }),
+      db.batch.count({ where: { deletedAt: null, instituteId } }),
+      db.course.count({ where: { deletedAt: null, teacher: { instituteId } } }),
+      db.attendance.groupBy({ by: ["status"], where: { approvalStatus: { in: ["APPROVED", "AMENDED"] }, user: { instituteId } }, _count: { _all: true } }),
+      db.submission.findMany({ where: { status: "GRADED", assessment: { teacher: { instituteId } } }, select: { score: true, maxScore: true } }),
+      db.assignmentSubmission.findMany({ where: { status: "GRADED", assignment: { teacher: { instituteId } } }, select: { score: true, assignment: { select: { totalMarks: true } } } }),
+      db.feedback.aggregate({ _avg: { rating: true }, _count: { _all: true }, where: { student: { instituteId } } }),
+      db.doubt.count({ where: { deletedAt: null, author: { instituteId } } }),
+      db.doubt.count({ where: { deletedAt: null, isResolved: false, author: { instituteId } } }),
     ]);
 
   const attTotal = attendanceRows.reduce((a, r) => a + r._count._all, 0);
@@ -41,7 +42,7 @@ export async function getInstituteReport() {
   const assessmentAvg = avgScorePct(assessmentSubs.map((s) => ({ score: s.score, max: s.maxScore })));
   const assignmentAvg = avgScorePct(assignmentSubs.map((s) => ({ score: s.score, max: s.assignment.totalMarks })));
 
-  const perBatch = await getBatchBreakdown();
+  const perBatch = await getBatchBreakdown(instituteId);
 
   return {
     kpis: {
@@ -59,9 +60,9 @@ export async function getInstituteReport() {
 }
 
 // Per-batch rollup used by the institute report.
-export async function getBatchBreakdown() {
+export async function getBatchBreakdown(instituteId: string | null) {
   const batches = await db.batch.findMany({
-    where: { deletedAt: null },
+    where: { deletedAt: null, instituteId },
     orderBy: { name: "asc" },
     select: {
       id: true,

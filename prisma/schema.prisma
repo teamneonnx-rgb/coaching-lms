@@ -201,6 +201,7 @@ enum EnquiryStatus {
 
 model Enquiry {
   id               String        @id @default(cuid())
+  instituteId      String? // multi-tenant scope (leads have no user until converted)
   name             String
   phone            String?
   email            String?
@@ -213,6 +214,7 @@ model Enquiry {
   updatedAt        DateTime      @updatedAt
 
   @@index([status])
+  @@index([instituteId])
 }
 
 model User {

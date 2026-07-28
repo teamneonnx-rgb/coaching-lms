@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { IndianRupee, AlertTriangle, Wallet, Layers } from "lucide-react";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { db } from "@/lib/db";
 import { getAllPayments, getPaymentsDashboard } from "@/lib/payments";
@@ -17,17 +17,17 @@ export const metadata: Metadata = { title: "Payments" };
 
 // FR-AD-17..21: payments dashboard + per-student fee records + reminders.
 export default async function AdminPaymentsPage() {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   const canView = await hasCapability(user, "PAYMENT_VIEW");
   const canCollect = await hasCapability(user, "PAYMENT_COLLECT");
   const canNotify = await hasCapability(user, "PAYMENT_NOTIFY");
   if (!canView && !canCollect) redirect("/admin");
 
   const [dash, payments, students] = await Promise.all([
-    getPaymentsDashboard(),
-    getAllPayments(),
+    getPaymentsDashboard(instituteId),
+    getAllPayments(instituteId),
     db.user.findMany({
-      where: { role: "STUDENT", deletedAt: null },
+      where: { role: "STUDENT", deletedAt: null, instituteId },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

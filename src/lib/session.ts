@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import type { Role } from "@prisma/client";
 import { homeForRole, isAdminArea } from "@/lib/roles";
@@ -24,6 +25,22 @@ export async function requireAdminArea() {
   const user = await requireUser();
   if (!isAdminArea(user.role as Role)) redirect(homeForRole(user.role as Role));
   return user;
+}
+
+// The caller's tenant (institute) id, memoised per request. Multi-tenant P2:
+// every admin-area query must scope by this so one tenant never sees another's
+// data. Cached so repeated calls in one render cost a single lookup.
+export const getInstituteId = cache(async (userId: string): Promise<string | null> => {
+  const { db } = await import("@/lib/db");
+  const row = await db.user.findUnique({ where: { id: userId }, select: { instituteId: true } });
+  return row?.instituteId ?? null;
+});
+
+// Admin-area guard + the caller's institute in one call, for tenant-scoped pages.
+export async function requireAdminInstitute() {
+  const user = await requireAdminArea();
+  const instituteId = await getInstituteId(user.id);
+  return { user, instituteId };
 }
 
 // FR-AU-02: accounts created by an admin must change their password on first

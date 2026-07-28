@@ -12,20 +12,20 @@ const like = (q: string) => ({ contains: q, mode: "insensitive" as const });
 
 // ── Admin (SUPER_ADMIN / ADMIN): students by name/batch, teachers, courses,
 //    batches, enquiries, payments (FR-AD-14/15). ─────────────────────
-export async function adminSearch(q: string): Promise<SearchGroup[]> {
+export async function adminSearch(q: string, instituteId: string | null): Promise<SearchGroup[]> {
   const [students, teachers, batches, courses, enquiries] = await Promise.all([
     db.user.findMany({
       where: {
-        role: "STUDENT", deletedAt: null,
+        role: "STUDENT", deletedAt: null, instituteId,
         // FR-AD-14: by student name OR by batch name.
         OR: [{ name: like(q) }, { email: like(q) }, { enrollments: { some: { batch: { name: like(q) } } } }],
       },
       take: 8, select: { id: true, name: true, email: true },
     }),
-    db.user.findMany({ where: { role: "TEACHER", deletedAt: null, OR: [{ name: like(q) }, { email: like(q) }, { subjectSpecialisation: like(q) }] }, take: 6, select: { id: true, name: true, email: true } }),
-    db.batch.findMany({ where: { deletedAt: null, name: like(q) }, take: 6, select: { id: true, name: true } }),
-    db.course.findMany({ where: { deletedAt: null, OR: [{ title: like(q) }, { subject: like(q) }] }, take: 6, select: { id: true, title: true } }),
-    db.enquiry.findMany({ where: { OR: [{ name: like(q) }, { phone: like(q) }, { email: like(q) }] }, take: 6, select: { id: true, name: true, status: true } }),
+    db.user.findMany({ where: { role: "TEACHER", deletedAt: null, instituteId, OR: [{ name: like(q) }, { email: like(q) }, { subjectSpecialisation: like(q) }] }, take: 6, select: { id: true, name: true, email: true } }),
+    db.batch.findMany({ where: { deletedAt: null, instituteId, name: like(q) }, take: 6, select: { id: true, name: true } }),
+    db.course.findMany({ where: { deletedAt: null, teacher: { instituteId }, OR: [{ title: like(q) }, { subject: like(q) }] }, take: 6, select: { id: true, title: true } }),
+    db.enquiry.findMany({ where: { instituteId, OR: [{ name: like(q) }, { phone: like(q) }, { email: like(q) }] }, take: 6, select: { id: true, name: true, status: true } }),
   ]);
 
   return [
