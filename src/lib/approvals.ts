@@ -2,9 +2,9 @@ import "server-only";
 import { db } from "@/lib/db";
 
 // Resources awaiting review (FR-APR) — newest first, with course/teacher context.
-export async function getPendingResources() {
+export async function getPendingResources(instituteId: string | null) {
   return db.resource.findMany({
-    where: { approvalStatus: "PENDING" },
+    where: { approvalStatus: "PENDING", chapter: { course: { teacher: { instituteId } } } },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -24,6 +24,6 @@ export async function getPendingResources() {
   });
 }
 
-export async function getPendingResourceCount() {
-  return db.resource.count({ where: { approvalStatus: "PENDING" } });
+export async function getPendingResourceCount(instituteId: string | null) {
+  return db.resource.count({ where: { approvalStatus: "PENDING", chapter: { course: { teacher: { instituteId } } } } });
 }

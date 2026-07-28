@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Layers } from "lucide-react";
 import { db } from "@/lib/db";
+import { requireAdminInstitute } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -23,7 +24,9 @@ function toDateInput(d: Date | null): string | null {
 }
 
 export default async function AdminBatchesPage() {
+  const { instituteId } = await requireAdminInstitute();
   const batches = await db.batch.findMany({
+    where: { instituteId },
     orderBy: { startDate: "desc" },
     include: {
       _count: { select: { enrollments: true, courses: true } },

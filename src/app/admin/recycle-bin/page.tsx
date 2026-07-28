@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Trash2 } from "lucide-react";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -19,9 +19,9 @@ import { RestoreUserButton } from "@/components/admin/restore-button";
 export const metadata: Metadata = { title: "Recycle bin" };
 
 export default async function RecycleBinPage() {
-  await requireAdminArea();
+  const { instituteId } = await requireAdminInstitute();
   const deleted = await db.user.findMany({
-    where: { deletedAt: { not: null } },
+    where: { deletedAt: { not: null }, instituteId },
     orderBy: { deletedAt: "desc" },
     select: { id: true, name: true, email: true, role: true, deletedAt: true },
   });

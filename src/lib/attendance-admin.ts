@@ -5,9 +5,9 @@ import { todayDateOnly } from "@/lib/date";
 // FR-AD-49: everything awaiting approval, newest date first. The page groups
 // rows into teacher attendance vs student attendance (by user.role) and, for
 // students, by batch-day so a full batch-day can be approved in one action.
-export async function getPendingAttendance() {
+export async function getPendingAttendance(instituteId: string | null) {
   return db.attendance.findMany({
-    where: { approvalStatus: "PENDING" },
+    where: { approvalStatus: "PENDING", user: { instituteId } },
     orderBy: [{ date: "desc" }, { markedAt: "asc" }],
     include: {
       user: { select: { name: true, role: true } },
@@ -17,10 +17,10 @@ export async function getPendingAttendance() {
 }
 
 // Teacher list + today's attendance row (for the admin marking panel, FR-AD-01).
-export async function getTeachersForMarking() {
+export async function getTeachersForMarking(instituteId: string | null) {
   const date = todayDateOnly();
   const teachers = await db.user.findMany({
-    where: { role: "TEACHER", deletedAt: null },
+    where: { role: "TEACHER", deletedAt: null, instituteId },
     orderBy: { name: "asc" },
     select: { id: true, name: true, email: true },
   });
@@ -36,21 +36,21 @@ export async function getTeachersForMarking() {
 }
 
 // FR-AD-03: monthly present/absent summary per teacher (approved rows only).
-export async function getTeacherMonthlySummary(year: number, month: number) {
+export async function getTeacherMonthlySummary(year: number, month: number, instituteId: string | null) {
   const from = new Date(Date.UTC(year, month, 1));
   const to = new Date(Date.UTC(year, month + 1, 1));
   const rows = await db.attendance.groupBy({
     by: ["userId", "status"],
     where: {
       batchId: null,
-      user: { role: "TEACHER" },
+      user: { role: "TEACHER", instituteId },
       approvalStatus: { in: ["APPROVED", "AMENDED"] },
       date: { gte: from, lt: to },
     },
     _count: { _all: true },
   });
   const teachers = await db.user.findMany({
-    where: { role: "TEACHER", deletedAt: null },
+    where: { role: "TEACHER", deletedAt: null, instituteId },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });

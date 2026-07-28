@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CalendarCheck, ClipboardCheck, Users } from "lucide-react";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { getPendingAttendance, getTeachersForMarking, getTeacherMonthlySummary } from "@/lib/attendance-admin";
 import { toDateInput, todayDateOnly } from "@/lib/date";
@@ -19,16 +19,16 @@ export const metadata: Metadata = { title: "Attendance" };
 // records teacher attendance here (FR-AD-01) and sees the monthly summary
 // (FR-AD-03).
 export default async function AdminAttendancePage() {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   const canStudents = await hasCapability(user, "STUDENT_ATTENDANCE_APPROVE");
   const canTeachers = await hasCapability(user, "TEACHER_ATTENDANCE");
   if (!canStudents && !canTeachers) redirect("/admin");
 
   const today = todayDateOnly();
   const [pending, teachers, summary] = await Promise.all([
-    getPendingAttendance(),
-    canTeachers ? getTeachersForMarking() : Promise.resolve([]),
-    canTeachers ? getTeacherMonthlySummary(today.getUTCFullYear(), today.getUTCMonth()) : Promise.resolve([]),
+    getPendingAttendance(instituteId),
+    canTeachers ? getTeachersForMarking(instituteId) : Promise.resolve([]),
+    canTeachers ? getTeacherMonthlySummary(today.getUTCFullYear(), today.getUTCMonth(), instituteId) : Promise.resolve([]),
   ]);
 
   // Only show rows this admin can act on.

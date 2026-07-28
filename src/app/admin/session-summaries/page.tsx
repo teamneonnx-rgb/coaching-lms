@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { BookOpenCheck } from "lucide-react";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { db } from "@/lib/db";
 import { toDateInput, todayDateOnly, formatDate } from "@/lib/date";
@@ -14,16 +14,17 @@ export const metadata: Metadata = { title: "Session summaries" };
 // FR-AD-41..43: compose per-day class summaries; published straight to the
 // profiles of every parent whose ward is in the batch (with a notification).
 export default async function AdminSessionSummariesPage() {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   if (!(await hasCapability(user, "SESSION_SUMMARY_UPLOAD"))) redirect("/admin");
 
   const [batches, summaries] = await Promise.all([
     db.batch.findMany({
-      where: { deletedAt: null, isActive: true },
+      where: { deletedAt: null, isActive: true, instituteId },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),
     db.classSessionSummary.findMany({
+      where: { batch: { instituteId } },
       orderBy: { sessionDate: "desc" },
       take: 30,
       include: { batch: { select: { name: true } } },

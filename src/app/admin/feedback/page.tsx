@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { MessagesSquare, Star } from "lucide-react";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { db } from "@/lib/db";
 import { getFeedbackInbox } from "@/lib/discussion";
@@ -19,14 +19,14 @@ export default async function AdminFeedbackPage({
 }: {
   searchParams: Promise<{ teacherId?: string; batchId?: string; role?: string }>;
 }) {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   if (!(await hasCapability(user, "FEEDBACK_VIEW"))) redirect("/admin");
   const sp = await searchParams;
 
   const [items, teachers, batches] = await Promise.all([
-    getFeedbackInbox({ teacherId: sp.teacherId, batchId: sp.batchId, role: sp.role }),
-    db.user.findMany({ where: { role: "TEACHER", deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
-    db.batch.findMany({ where: { deletedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    getFeedbackInbox({ instituteId, teacherId: sp.teacherId, batchId: sp.batchId, role: sp.role }),
+    db.user.findMany({ where: { role: "TEACHER", deletedAt: null, instituteId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.batch.findMany({ where: { deletedAt: null, instituteId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
   ]);
 
   const qs = (patch: Record<string, string | undefined>) => {

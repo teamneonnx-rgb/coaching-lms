@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import { db } from "@/lib/db";
+import { requireAdminInstitute } from "@/lib/session";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -19,8 +20,10 @@ import { CourseRowActions } from "@/components/admin/courses/course-row-actions"
 export const metadata: Metadata = { title: "Courses" };
 
 export default async function AdminCoursesPage() {
+  const { instituteId } = await requireAdminInstitute();
   const [courses, batchList, teacherList] = await Promise.all([
     db.course.findMany({
+      where: { teacher: { instituteId } },
       orderBy: { createdAt: "desc" },
       include: {
         batch: { select: { name: true } },
@@ -28,9 +31,9 @@ export default async function AdminCoursesPage() {
         _count: { select: { chapters: true } },
       },
     }),
-    db.batch.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.batch.findMany({ where: { instituteId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.user.findMany({
-      where: { role: "TEACHER", deletedAt: null },
+      where: { role: "TEACHER", deletedAt: null, instituteId },
       orderBy: { name: "asc" },
       select: { id: true, name: true },
     }),

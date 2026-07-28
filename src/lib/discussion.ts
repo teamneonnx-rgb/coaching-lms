@@ -102,12 +102,14 @@ export async function getStudentFeedback(courseId: string, studentId: string) {
 // by teacher, batch, submitter role and period. Course feedback resolves its
 // teacher through the course; parent feedback carries targetTeacherId + wardId.
 export async function getFeedbackInbox(filter: {
+  instituteId?: string | null;
   teacherId?: string;
   batchId?: string;
   role?: string;
   period?: string;
 } = {}) {
   const rows = await db.feedback.findMany({
+    where: { student: { instituteId: filter.instituteId } },
     orderBy: { createdAt: "desc" },
     take: 200,
     include: {

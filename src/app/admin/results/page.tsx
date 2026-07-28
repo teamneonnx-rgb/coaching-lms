@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { db } from "@/lib/db";
 import { ResultsManager, type ExamGroup } from "@/components/admin/results-manager";
@@ -10,12 +10,12 @@ export const metadata: Metadata = { title: "Results" };
 // FR-AD-52..55: results entry (per-batch marks sheet), publish per exam,
 // audited edits with re-notification. RESULT_MANAGE capability.
 export default async function AdminResultsPage() {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   if (!(await hasCapability(user, "RESULT_MANAGE"))) redirect("/admin");
 
   const [batches, results] = await Promise.all([
     db.batch.findMany({
-      where: { deletedAt: null, isActive: true },
+      where: { deletedAt: null, isActive: true, instituteId },
       orderBy: { name: "asc" },
       select: {
         id: true,
@@ -28,6 +28,7 @@ export default async function AdminResultsPage() {
       },
     }),
     db.result.findMany({
+      where: { student: { instituteId } },
       orderBy: [{ createdAt: "desc" }],
       include: { student: { select: { name: true } } },
     }),

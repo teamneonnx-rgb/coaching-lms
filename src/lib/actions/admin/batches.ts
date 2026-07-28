@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireCapability } from "@/lib/capabilities";
+import { getInstituteId } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
 import { batchSchema, updateBatchSchema } from "@/lib/validations/admin";
 
@@ -12,7 +13,7 @@ export type ActionResult = { ok: boolean; error?: string; info?: string };
 // FR-AD-10 / PRD §4.2: batches are created by Admin only (BATCH_MANAGE
 // capability; Super Admin always). The former teacher create-path is removed.
 export async function createBatch(values: unknown): Promise<ActionResult> {
-  await requireCapability("BATCH_MANAGE");
+  const actor = await requireCapability("BATCH_MANAGE");
 
   const parsed = batchSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
@@ -26,6 +27,7 @@ export async function createBatch(values: unknown): Promise<ActionResult> {
         startDate: data.startDate,
         endDate: data.endDate ?? null,
         isActive: data.isActive,
+        instituteId: await getInstituteId(actor.id), // multi-tenant scope
       },
     });
   } catch (error) {

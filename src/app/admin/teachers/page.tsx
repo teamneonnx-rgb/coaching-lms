@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { GraduationCap } from "lucide-react";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,11 +16,11 @@ export const metadata: Metadata = { title: "Teachers" };
 // FR-AD-05: teacher list — name, photo, subject, batch count, active status.
 // Entry point of the drill-down spine: Teachers → Teacher → Batch → Student.
 export default async function AdminTeachersPage() {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   if (!(await hasCapability(user, "TEACHER_VIEW"))) redirect("/admin");
 
   const teachers = await db.user.findMany({
-    where: { role: "TEACHER", deletedAt: null },
+    where: { role: "TEACHER", deletedAt: null, instituteId },
     orderBy: { name: "asc" },
     select: {
       id: true, name: true, email: true, status: true,
