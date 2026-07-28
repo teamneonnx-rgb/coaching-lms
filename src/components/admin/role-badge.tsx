@@ -2,6 +2,7 @@ import type { Role } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
 const STYLES: Record<Role, string> = {
+  PLATFORM_OWNER: "bg-violet-100 text-violet-700",
   SUPER_ADMIN: "bg-indigo-100 text-indigo-700",
   ADMIN: "bg-blue-100 text-blue-700",
   IT: "bg-cyan-100 text-cyan-700",
@@ -11,6 +12,7 @@ const STYLES: Record<Role, string> = {
 };
 
 const LABELS: Record<Role, string> = {
+  PLATFORM_OWNER: "Platform Owner",
   SUPER_ADMIN: "Super Admin",
   ADMIN: "Admin",
   IT: "IT",

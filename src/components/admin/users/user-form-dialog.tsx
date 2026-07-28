@@ -88,9 +88,10 @@ export function UserFormDialog({
       name: user?.name ?? "",
       email: user?.email ?? "",
       password: "",
-      // SUPER_ADMIN is never form-assignable (FR-SA-00) — an SA row can't be
-      // edited here, so fall back safely for the type-narrowed enum.
-      role: user?.role === "SUPER_ADMIN" ? "ADMIN" : (user?.role ?? "STUDENT"),
+      // SUPER_ADMIN and PLATFORM_OWNER are never form-assignable here — those
+      // rows aren't edited in the admin user form, so fall back safely for the
+      // type-narrowed enum.
+      role: user?.role === "SUPER_ADMIN" || user?.role === "PLATFORM_OWNER" ? "ADMIN" : (user?.role ?? "STUDENT"),
       parentName: user?.parentName ?? "",
       parentPhone: user?.parentPhone ?? "",
       parentEmail: user?.parentEmail ?? "",
