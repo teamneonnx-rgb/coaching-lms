@@ -43,6 +43,7 @@ export const authConfig = {
       const { pathname } = nextUrl;
 
       const isProtected =
+        pathname.startsWith("/platform") ||
         pathname.startsWith("/admin") ||
         pathname.startsWith("/teacher") ||
         pathname.startsWith("/student") ||

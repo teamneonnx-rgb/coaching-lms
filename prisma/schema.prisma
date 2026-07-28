@@ -12,6 +12,7 @@ datasource db {
 }
 
 enum Role {
+  PLATFORM_OWNER // SaaS platform owner — provisions & manages tenants (no institute)
   SUPER_ADMIN
   ADMIN
   IT

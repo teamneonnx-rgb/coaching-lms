@@ -25,10 +25,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const identifier = email.toLowerCase();
         const user = await db.user.findFirst({
           where: { OR: [{ email: identifier }, { phone: identifier }] },
+          include: { institute: { select: { isActive: true } } },
         });
         if (!user) return null;
         // Deleted or suspended accounts cannot sign in (FR-AUTH-9, FR-DATA-2).
         if (user.deletedAt || user.status === "SUSPENDED") return null;
+        // Multi-tenant: users of a suspended tenant cannot sign in (platform
+        // owner has no institute and is unaffected).
+        if (user.institute && !user.institute.isActive) return null;
 
         // FR-AU-05: locked accounts cannot sign in until the window passes or
         // an admin unlocks them.

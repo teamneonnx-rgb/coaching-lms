@@ -4,6 +4,7 @@ import type { Role } from "@prisma/client";
 // SUPER_ADMIN and ADMIN live in /admin. IT has its own read-only diagnostics
 // shell at /it (FR-IT-06 — no business write access). PARENT gets a portal.
 export const ROLE_HOME: Record<Role, string> = {
+  PLATFORM_OWNER: "/platform",
   SUPER_ADMIN: "/admin",
   ADMIN: "/admin",
   IT: "/it",
@@ -14,6 +15,7 @@ export const ROLE_HOME: Record<Role, string> = {
 
 // Route prefix each role is allowed to access.
 export const ROLE_PREFIX: Record<Role, string> = {
+  PLATFORM_OWNER: "/platform",
   SUPER_ADMIN: "/admin",
   ADMIN: "/admin",
   IT: "/it",
