@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { db } from "@/lib/db";
 import { getActiveBatch } from "@/lib/student";
@@ -23,7 +23,7 @@ export default async function AdminStudentProfilePage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ teacherId?: string; batchId?: string }>;
 }) {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   if (!(await hasCapability(user, "TEACHER_VIEW")) && !(await hasCapability(user, "STUDENT_MANAGE"))) {
     redirect("/admin");
   }
@@ -31,7 +31,7 @@ export default async function AdminStudentProfilePage({
   const sp = await searchParams;
 
   const student = await db.user.findFirst({
-    where: { id, role: "STUDENT", deletedAt: null },
+    where: { id, role: "STUDENT", deletedAt: null, instituteId },
     select: {
       id: true, name: true, email: true, phone: true, status: true,
       enrolmentNo: true, classOrStandard: true, admissionDate: true,

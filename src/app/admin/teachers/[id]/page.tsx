@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Layers, Star } from "lucide-react";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,12 +13,12 @@ export const metadata: Metadata = { title: "Teacher" };
 // FR-AD-06 + FR-AD-24: teacher profile, their batches (owned + delivering),
 // and the aggregate rating from student feedback. Breadcrumb retained.
 export default async function AdminTeacherProfilePage({ params }: { params: Promise<{ id: string }> }) {
-  const user = await requireAdminArea();
+  const { user, instituteId } = await requireAdminInstitute();
   if (!(await hasCapability(user, "TEACHER_VIEW"))) redirect("/admin");
   const { id } = await params;
 
   const teacher = await db.user.findFirst({
-    where: { id, role: "TEACHER", deletedAt: null },
+    where: { id, role: "TEACHER", deletedAt: null, instituteId },
     select: {
       id: true, name: true, email: true, phone: true, status: true,
       subjectSpecialisation: true, qualification: true, employeeCode: true, joiningDate: true,

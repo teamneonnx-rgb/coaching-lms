@@ -3,7 +3,8 @@ import type { Role } from "@prisma/client";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
+import { db } from "@/lib/db";
 import { getManageableCourse } from "@/lib/content";
 import { CourseContentManager } from "@/components/content/course-content-manager";
 
@@ -15,7 +16,10 @@ export default async function AdminCourseContentPage({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
-  const admin = await requireAdminArea();
+  const { user: admin, instituteId } = await requireAdminInstitute();
+  // Multi-tenant: the course must belong to this institute (via its teacher).
+  const owned = await db.course.findFirst({ where: { id: courseId, teacher: { instituteId } }, select: { id: true } });
+  if (!owned) notFound();
   const course = await getManageableCourse(admin.id, admin.role as Role, courseId);
   if (!course) notFound();
 

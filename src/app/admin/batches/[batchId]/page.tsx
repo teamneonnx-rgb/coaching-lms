@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAdminArea } from "@/lib/session";
+import { requireAdminInstitute } from "@/lib/session";
 import { db } from "@/lib/db";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EnrollmentManager } from "@/components/admin/enrollment-manager";
@@ -19,12 +19,12 @@ export default async function AdminBatchDetailPage({
   params: Promise<{ batchId: string }>;
   searchParams: Promise<{ teacherId?: string }>;
 }) {
-  await requireAdminArea();
+  const { instituteId } = await requireAdminInstitute();
   const { batchId } = await params;
   const sp = await searchParams;
 
-  const batch = await db.batch.findUnique({
-    where: { id: batchId },
+  const batch = await db.batch.findFirst({
+    where: { id: batchId, instituteId },
     include: {
       teacher: { select: { id: true, name: true } },
       enrollments: {
@@ -42,7 +42,7 @@ export default async function AdminBatchDetailPage({
   const enrolledIds = batch.enrollments.map((e) => e.student.id);
   // Students not actively enrolled in this batch (candidates to add).
   const available = await db.user.findMany({
-    where: { role: "STUDENT", deletedAt: null, id: { notIn: enrolledIds.length ? enrolledIds : ["_none_"] } },
+    where: { role: "STUDENT", deletedAt: null, instituteId, id: { notIn: enrolledIds.length ? enrolledIds : ["_none_"] } },
     orderBy: { name: "asc" },
     select: { id: true, name: true, email: true },
   });
@@ -50,7 +50,7 @@ export default async function AdminBatchDetailPage({
   const trail = `?batchId=${batch.id}${crumbTeacher ? `&teacherId=${crumbTeacher.id}` : ""}`;
 
   const allTeachers = await db.user.findMany({
-    where: { role: "TEACHER", deletedAt: null },
+    where: { role: "TEACHER", deletedAt: null, instituteId },
     orderBy: { name: "asc" },
     select: { id: true, name: true },
   });
