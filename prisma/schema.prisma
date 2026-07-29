@@ -344,6 +344,7 @@ model AuditEntry {
 
   @@index([entity, entityId])
   @@index([createdAt])
+  @@index([actorId])
 }
 
 // One row per capability granted to an ADMIN (FR-SA-03). Absence = denied.
@@ -361,6 +362,7 @@ model AdminCapability {
 
   @@unique([adminUserId, capabilityKey])
   @@index([adminUserId])
+  @@index([grantedById])
 }
 
 // PRD §4.2: each batch has EXACTLY ONE owning teacher; batch names are unique
@@ -496,6 +498,7 @@ model ResourceProgress {
 
   @@unique([studentId, resourceId])
   @@index([studentId])
+  @@index([resourceId])
 }
 
 // One table for BOTH student and teacher attendance (split by user.role).
@@ -617,6 +620,7 @@ model Submission {
   @@unique([assessmentId, studentId])
   @@index([assessmentId])
   @@index([studentId])
+  @@index([gradedById])
 }
 
 model Answer {
@@ -634,6 +638,8 @@ model Answer {
   isCorrect        Boolean?
 
   @@index([submissionId])
+  @@index([questionId])
+  @@index([selectedOptionId])
 }
 
 // ── Assignments (Phase / FR-ASG) ───────────────────────────────────
@@ -685,6 +691,7 @@ model AssignmentSubmission {
   @@unique([assignmentId, studentId])
   @@index([assignmentId])
   @@index([studentId])
+  @@index([gradedById])
 }
 
 // ── Q&A / Comments / Feedback (FR-QNA, FR-CMT, FR-FBK) ──────────────
@@ -722,6 +729,7 @@ model DoubtReply {
   createdAt  DateTime  @default(now())
 
   @@index([doubtId])
+  @@index([authorId])
 }
 
 // Threaded comments on a content Resource (FR-CMT). Author may be a
@@ -737,6 +745,7 @@ model Comment {
   createdAt  DateTime  @default(now())
 
   @@index([resourceId])
+  @@index([authorId])
 }
 
 // One rating (1–5) + optional review per student per course (FR-FBK).
@@ -758,6 +767,7 @@ model Feedback {
 
   @@unique([courseId, studentId])
   @@index([courseId])
+  @@index([studentId])
 }
 
 // ── No-code page/dashboard builder ─────────────────────────────────
@@ -790,6 +800,7 @@ model Page {
 
   @@unique([instituteId, slug])
   @@index([instituteId, status])
+  @@index([updatedById])
 }
 
 // Immutable snapshot written on every publish so a bad edit can be rolled back.

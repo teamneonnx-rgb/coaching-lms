@@ -1,0 +1,34 @@
+name: CI
+
+# Pre-deploy gate — runs on every push/PR to main. Lint + type-checked build
+# need no secrets (Prisma generate reads only the schema; all DB-backed pages
+# are dynamic so `next build` succeeds without env vars).
+#
+# To also gate on tenant isolation, add DATABASE_URL + DIRECT_URL repo secrets
+# (point them at a STAGING database, never production) and uncomment the last
+# step — it seeds/deletes its own throwaway tenants.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+      # - name: Tenant isolation
+      #   env:
+      #     DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      #     DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      #   run: npm run test:isolation
