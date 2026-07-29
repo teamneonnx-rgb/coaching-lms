@@ -86,14 +86,17 @@ export async function assignBatchTeacher(values: {
   const admin = await requireCapability("BATCH_MANAGE");
   const { batchId, teacherId } = values;
   if (!batchId || !teacherId) return { ok: false, error: "Missing batch or teacher" };
+  const instituteId = await getInstituteId(admin.id);
 
+  // Multi-tenant: both the batch and the teacher must be in the admin's institute.
+  const before = await db.batch.findFirst({ where: { id: batchId, instituteId }, select: { teacherId: true } });
+  if (!before) return { ok: false, error: "Batch not found" };
   const teacher = await db.user.findFirst({
-    where: { id: teacherId, role: "TEACHER", deletedAt: null },
+    where: { id: teacherId, role: "TEACHER", deletedAt: null, instituteId },
     select: { id: true, name: true },
   });
   if (!teacher) return { ok: false, error: "Selected teacher is invalid" };
 
-  const before = await db.batch.findUnique({ where: { id: batchId }, select: { teacherId: true } });
   await db.batch.update({
     where: { id: batchId },
     data: {

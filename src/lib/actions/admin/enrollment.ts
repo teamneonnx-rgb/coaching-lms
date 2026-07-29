@@ -5,6 +5,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requireCapability } from "@/lib/capabilities";
+import { getInstituteId } from "@/lib/session";
 import { sendWelcomeEmail } from "@/lib/notifications/events";
 
 export type ActionResult = { ok: boolean; error?: string; info?: string };
@@ -17,16 +18,19 @@ export async function enrollStudents(values: {
   batchId: string;
   studentIds: string[];
 }): Promise<ActionResult> {
-  await requireCapability("STUDENT_MANAGE");
+  const actor = await requireCapability("STUDENT_MANAGE");
   const schema = z.object({ batchId: z.string().min(1), studentIds: z.array(z.string().min(1)) });
   const parsed = schema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { batchId, studentIds } = parsed.data;
   if (studentIds.length === 0) return { ok: false, error: "Select at least one student" };
+  const instituteId = await getInstituteId(actor.id);
 
-  // Only enroll users that are actually students.
+  // Multi-tenant: the batch and every student must belong to the admin's institute.
+  const batch = await db.batch.findFirst({ where: { id: batchId, instituteId }, select: { id: true } });
+  if (!batch) return { ok: false, error: "Batch not found" };
   const students = await db.user.findMany({
-    where: { id: { in: studentIds }, role: "STUDENT" },
+    where: { id: { in: studentIds }, role: "STUDENT", instituteId },
     select: { id: true },
   });
 
@@ -101,11 +105,18 @@ export async function bulkImportStudents(input: {
   csv: string;
   batchId?: string;
 }): Promise<ImportResult> {
-  await requireCapability("STUDENT_BULK_IMPORT");
+  const actor = await requireCapability("STUDENT_BULK_IMPORT");
+  const instituteId = await getInstituteId(actor.id); // multi-tenant: new students belong to the admin's institute
 
   const rows = parseCsv(input.csv);
   if (rows.length === 0) return { ok: false, error: "No data rows found (need a header row + at least one row)" };
   if (rows.length > 500) return { ok: false, error: "Import is limited to 500 rows at a time" };
+
+  // If enrolling into a batch, it must belong to this institute.
+  if (input.batchId) {
+    const batch = await db.batch.findFirst({ where: { id: input.batchId, instituteId }, select: { id: true } });
+    if (!batch) return { ok: false, error: "Selected batch not found" };
+  }
 
   const created: { name: string; email: string; tempPassword: string }[] = [];
   const skipped: { email: string; reason: string }[] = [];
@@ -138,6 +149,7 @@ export async function bulkImportStudents(input: {
         email,
         password: await bcrypt.hash(pw, BCRYPT_ROUNDS),
         role: "STUDENT",
+        instituteId, // multi-tenant scope
         mustChangePassword: true, // FR-AU-02
         parentName: data.parentName || null,
         parentPhone: data.parentPhone || null,

@@ -3,30 +3,32 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { requireCapability } from "@/lib/capabilities";
+import { getInstituteId } from "@/lib/session";
 import { logAudit } from "@/lib/audit";
 import { courseSchema, updateCourseSchema } from "@/lib/validations/admin";
 
 export type ActionResult = { ok: boolean; error?: string };
 
-// Validates that the referenced teacher is actually a TEACHER and the batch exists.
-async function validateRefs(batchId: string, teacherId: string): Promise<string | null> {
+// Validates the batch + teacher exist AND belong to the caller's institute
+// (multi-tenant: an admin can't attach a course to another tenant's batch/teacher).
+async function validateRefs(batchId: string, teacherId: string, instituteId: string | null): Promise<string | null> {
   const [batch, teacher] = await Promise.all([
-    db.batch.findUnique({ where: { id: batchId }, select: { id: true } }),
-    db.user.findUnique({ where: { id: teacherId }, select: { role: true } }),
+    db.batch.findFirst({ where: { id: batchId, instituteId }, select: { id: true } }),
+    db.user.findFirst({ where: { id: teacherId, role: "TEACHER", instituteId }, select: { id: true } }),
   ]);
   if (!batch) return "Selected batch no longer exists";
-  if (!teacher || teacher.role !== "TEACHER") return "Selected teacher is invalid";
+  if (!teacher) return "Selected teacher is invalid";
   return null;
 }
 
 export async function createCourse(values: unknown): Promise<ActionResult> {
-  await requireCapability("COURSE_MANAGE");
+  const actor = await requireCapability("COURSE_MANAGE");
 
   const parsed = courseSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const data = parsed.data;
 
-  const refError = await validateRefs(data.batchId, data.teacherId);
+  const refError = await validateRefs(data.batchId, data.teacherId, await getInstituteId(actor.id));
   if (refError) return { ok: false, error: refError };
 
   const created = await db.course.create({
@@ -47,13 +49,18 @@ export async function createCourse(values: unknown): Promise<ActionResult> {
 }
 
 export async function updateCourse(values: unknown): Promise<ActionResult> {
-  await requireCapability("COURSE_MANAGE");
+  const actor = await requireCapability("COURSE_MANAGE");
 
   const parsed = updateCourseSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const data = parsed.data;
 
-  const refError = await validateRefs(data.batchId, data.teacherId);
+  const instituteId = await getInstituteId(actor.id);
+  // The course being edited must belong to this institute (via its teacher).
+  const owns = await db.course.findFirst({ where: { id: data.id, teacher: { instituteId } }, select: { id: true } });
+  if (!owns) return { ok: false, error: "Course not found" };
+
+  const refError = await validateRefs(data.batchId, data.teacherId, instituteId);
   if (refError) return { ok: false, error: refError };
 
   await db.course.update({
