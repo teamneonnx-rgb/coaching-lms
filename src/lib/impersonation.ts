@@ -39,8 +39,17 @@ export async function getSessionContext(): Promise<SessionContext | null> {
   const targetId = (await cookies()).get(IMP_COOKIE)?.value;
   if (!targetId) return { user: real, realUser: real, impersonating: false };
 
+  // Multi-tenant: a Super Admin may only impersonate NON-privileged users
+  // WITHIN their own institute — never another tenant's users or the platform
+  // owner. This is the enforcement point (the cookie is only honoured here).
+  const realRec = await db.user.findUnique({ where: { id: real.id }, select: { instituteId: true } });
   const target = await db.user.findFirst({
-    where: { id: targetId, deletedAt: null, role: { not: "SUPER_ADMIN" } },
+    where: {
+      id: targetId,
+      deletedAt: null,
+      role: { notIn: ["SUPER_ADMIN", "PLATFORM_OWNER"] },
+      instituteId: realRec?.instituteId ?? null,
+    },
     select: { id: true, name: true, email: true, role: true },
   });
   if (!target) return { user: real, realUser: real, impersonating: false };

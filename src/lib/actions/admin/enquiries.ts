@@ -58,7 +58,8 @@ export async function updateEnquiry(values: unknown): Promise<ActionResult> {
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const { id, status, notes } = parsed.data;
 
-  const before = await db.enquiry.findUnique({ where: { id }, select: { status: true, notes: true } });
+  // Multi-tenant: only enquiries in the admin's institute.
+  const before = await db.enquiry.findFirst({ where: { id, instituteId: await getInstituteId(admin.id) }, select: { status: true, notes: true } });
   if (!before) return { ok: false, error: "Enquiry not found" };
 
   await db.enquiry.update({
@@ -82,7 +83,9 @@ export async function convertEnquiry(id: string): Promise<ActionResult & { tempP
     return { ok: false, error: "403 — converting needs the STUDENT_MANAGE capability" };
   }
 
-  const enquiry = await db.enquiry.findUnique({ where: { id } });
+  // Multi-tenant: only enquiries in the admin's institute can be converted.
+  const instituteId = await getInstituteId(admin.id);
+  const enquiry = await db.enquiry.findFirst({ where: { id, instituteId } });
   if (!enquiry) return { ok: false, error: "Enquiry not found" };
   if (enquiry.convertedUserId) return { ok: false, error: "Already converted" };
   if (!enquiry.email) return { ok: false, error: "Add an email to the enquiry first — it becomes the student's login" };
@@ -91,7 +94,6 @@ export async function convertEnquiry(id: string): Promise<ActionResult & { tempP
   const existing = await db.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) return { ok: false, error: "A user with this email already exists" };
 
-  const actorRecord = await db.user.findUnique({ where: { id: admin.id }, select: { instituteId: true } });
   const tempPassword = `Join@${Math.random().toString(36).slice(2, 8)}${Math.floor(Math.random() * 90 + 10)}`;
 
   const student = await db.user.create({
@@ -101,7 +103,7 @@ export async function convertEnquiry(id: string): Promise<ActionResult & { tempP
       phone: enquiry.phone || null,
       password: await bcrypt.hash(tempPassword, 12),
       role: "STUDENT",
-      instituteId: actorRecord?.instituteId ?? null,
+      instituteId,
       createdById: admin.id,
       mustChangePassword: true, // FR-AU-02
     },

@@ -16,8 +16,16 @@ export async function startImpersonation(targetUserId: string): Promise<ActionRe
   const actor = await requireUser();
   if (actor.role !== "SUPER_ADMIN") return { ok: false, error: "Only the Super Admin can impersonate" };
 
+  // Multi-tenant: only non-privileged users within the Super Admin's own
+  // institute may be impersonated (matches the getSessionContext enforcement).
+  const actorRec = await db.user.findUnique({ where: { id: actor.id }, select: { instituteId: true } });
   const target = await db.user.findFirst({
-    where: { id: targetUserId, deletedAt: null, role: { not: "SUPER_ADMIN" } },
+    where: {
+      id: targetUserId,
+      deletedAt: null,
+      role: { notIn: ["SUPER_ADMIN", "PLATFORM_OWNER"] },
+      instituteId: actorRec?.instituteId ?? null,
+    },
     select: { id: true, email: true, role: true },
   });
   if (!target) return { ok: false, error: "User not available for impersonation" };

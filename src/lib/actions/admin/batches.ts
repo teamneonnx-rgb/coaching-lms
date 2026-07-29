@@ -44,11 +44,15 @@ export async function createBatch(values: unknown): Promise<ActionResult> {
 }
 
 export async function updateBatch(values: unknown): Promise<ActionResult> {
-  await requireCapability("BATCH_MANAGE");
+  const actor = await requireCapability("BATCH_MANAGE");
 
   const parsed = updateBatchSchema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
   const data = parsed.data;
+
+  // Multi-tenant: the batch must belong to this institute.
+  const owns = await db.batch.findFirst({ where: { id: data.id, instituteId: await getInstituteId(actor.id) }, select: { id: true } });
+  if (!owns) return { ok: false, error: "Batch not found" };
 
   try {
     await db.batch.update({
@@ -121,6 +125,10 @@ export async function assignBatchTeacher(values: {
 export async function deleteBatch(id: string): Promise<ActionResult> {
   const admin = await requireCapability("BATCH_MANAGE");
   if (!id) return { ok: false, error: "Missing batch id" };
+
+  // Multi-tenant: the batch must belong to this institute.
+  const owns = await db.batch.findFirst({ where: { id, instituteId: await getInstituteId(admin.id) }, select: { id: true } });
+  if (!owns) return { ok: false, error: "Batch not found" };
 
   // FR-AD-13: a batch with attendance or result records cannot be deleted —
   // only archived. Enforced server-side.

@@ -5,7 +5,7 @@ import { assertNotImpersonating } from "@/lib/impersonation";
 import { Prisma, type Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
-import { requireUser } from "@/lib/session";
+import { requireUser, getInstituteId } from "@/lib/session";
 import { hasCapability } from "@/lib/capabilities";
 import { sendWelcomeEmail } from "@/lib/notifications/events";
 import { linkParentForStudent } from "@/lib/parent";
@@ -108,7 +108,7 @@ export async function updateUser(values: unknown): Promise<ActionResult> {
 
   const before = await db.user.findUnique({
     where: { id: data.id },
-    select: { name: true, email: true, role: true },
+    select: { name: true, email: true, role: true, instituteId: true },
   });
   if (!before) return { ok: false, error: "User not found" };
   if (before.role === "SUPER_ADMIN") return { ok: false, error: "The Super Admin account cannot be edited here" };
@@ -121,6 +121,8 @@ export async function updateUser(values: unknown): Promise<ActionResult> {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Not authorized" };
   }
+  // Multi-tenant: the target must be in the actor's institute.
+  if ((await getInstituteId(actor.id)) !== before.instituteId) return { ok: false, error: "User not found" };
 
   const email = data.email.toLowerCase();
   const clash = await db.user.findFirst({
@@ -157,7 +159,7 @@ export async function updateUser(values: unknown): Promise<ActionResult> {
 
 export async function deleteUser(id: string): Promise<ActionResult> {
   if (!id) return { ok: false, error: "Missing user id" };
-  const target = await db.user.findUnique({ where: { id }, select: { email: true, role: true } });
+  const target = await db.user.findUnique({ where: { id }, select: { email: true, role: true, instituteId: true } });
   if (!target) return { ok: false, error: "User not found" };
   if (target.role === "SUPER_ADMIN") return { ok: false, error: "The Super Admin account cannot be deleted" };
 
@@ -167,6 +169,8 @@ export async function deleteUser(id: string): Promise<ActionResult> {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Not authorized" };
   }
+  // Multi-tenant: the target must be in the actor's institute.
+  if ((await getInstituteId(admin.id)) !== target.instituteId) return { ok: false, error: "User not found" };
   if (id === admin.id) return { ok: false, error: "You cannot delete your own account" };
 
   // Soft delete — reversible from the recycle bin.
@@ -187,7 +191,7 @@ export async function deleteUser(id: string): Promise<ActionResult> {
 }
 
 export async function restoreUser(id: string): Promise<ActionResult> {
-  const target = await db.user.findUnique({ where: { id }, select: { role: true } });
+  const target = await db.user.findUnique({ where: { id }, select: { role: true, instituteId: true } });
   if (!target) return { ok: false, error: "User not found" };
   let admin;
   try {
@@ -195,6 +199,8 @@ export async function restoreUser(id: string): Promise<ActionResult> {
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Not authorized" };
   }
+  // Multi-tenant: the target must be in the actor's institute.
+  if ((await getInstituteId(admin.id)) !== target.instituteId) return { ok: false, error: "User not found" };
   await db.user.update({ where: { id }, data: { deletedAt: null, deletedById: null } });
   await logAudit({ actorId: admin.id, actorRole: admin.role, action: "user.restore", entity: "User", entityId: id });
   revalidatePath("/admin/users");
@@ -210,8 +216,10 @@ export async function resetUserPassword(id: string): Promise<ActionResult & { te
   if (!(await hasCapability(actor, "PASSWORD_RESET"))) {
     return { ok: false, error: "403 — missing capability PASSWORD_RESET" };
   }
-  const target = await db.user.findUnique({ where: { id }, select: { email: true, role: true } });
+  const target = await db.user.findUnique({ where: { id }, select: { email: true, role: true, instituteId: true } });
   if (!target) return { ok: false, error: "User not found" };
+  // Multi-tenant: only reset passwords for users in the actor's institute.
+  if ((await getInstituteId(actor.id)) !== target.instituteId) return { ok: false, error: "User not found" };
   if (target.role === "SUPER_ADMIN" && actor.role !== "SUPER_ADMIN") {
     return { ok: false, error: "Only the Super Admin can reset their own password" };
   }
@@ -238,6 +246,9 @@ export async function unlockUser(id: string): Promise<ActionResult> {
   if (!(await hasCapability(actor, "PASSWORD_RESET"))) {
     return { ok: false, error: "403 — missing capability PASSWORD_RESET" };
   }
+  // Multi-tenant: only unlock users in the actor's institute.
+  const target = await db.user.findFirst({ where: { id, instituteId: await getInstituteId(actor.id) }, select: { id: true } });
+  if (!target) return { ok: false, error: "User not found" };
   await db.user.update({ where: { id }, data: { failedLoginAttempts: 0, lockedUntil: null } });
   await logAudit({ actorId: actor.id, actorRole: actor.role, action: "user.unlock", entity: "User", entityId: id });
   revalidatePath("/admin/users");

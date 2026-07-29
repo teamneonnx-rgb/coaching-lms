@@ -51,10 +51,14 @@ export async function unenrollStudent(values: {
   batchId: string;
   studentId: string;
 }): Promise<ActionResult> {
-  await requireCapability("STUDENT_MANAGE");
+  const actor = await requireCapability("STUDENT_MANAGE");
   const schema = z.object({ batchId: z.string().min(1), studentId: z.string().min(1) });
   const parsed = schema.safeParse(values);
   if (!parsed.success) return { ok: false, error: "Invalid input" };
+
+  // Multi-tenant: the batch must belong to this institute.
+  const batch = await db.batch.findFirst({ where: { id: parsed.data.batchId, instituteId: await getInstituteId(actor.id) }, select: { id: true } });
+  if (!batch) return { ok: false, error: "Batch not found" };
 
   // Soft-remove: keep the row (attendance/marks history) but mark inactive (FR-BAT-5).
   await db.enrollment.updateMany({

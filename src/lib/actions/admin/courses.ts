@@ -88,6 +88,10 @@ export async function deleteCourse(id: string): Promise<ActionResult> {
   const admin = await requireCapability("COURSE_MANAGE");
   if (!id) return { ok: false, error: "Missing course id" };
 
+  // Multi-tenant: the course must belong to this institute (via its teacher).
+  const owns = await db.course.findFirst({ where: { id, teacher: { instituteId: await getInstituteId(admin.id) } }, select: { id: true } });
+  if (!owns) return { ok: false, error: "Course not found" };
+
   // Cascades to chapters and resources (schema onDelete).
   await db.course.delete({ where: { id } });
   await logAudit({ actorId: admin.id, actorRole: admin.role, action: "course.delete", entity: "Course", entityId: id });
