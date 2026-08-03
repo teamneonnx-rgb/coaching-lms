@@ -53,8 +53,10 @@ export const authConfig = {
       // Unauthenticated hitting a protected area → send to /login.
       if (isProtected && !isLoggedIn) return false;
 
-      // FR-SA-06: a Super Admin impersonating someone may browse any role area.
-      const impersonating = role === "SUPER_ADMIN" && !!request.cookies.get("imp_uid")?.value;
+      // FR-SA-06: a Super Admin impersonating someone — or the platform owner
+      // who has "entered" a tenant — may browse the target's role area.
+      const impersonating =
+        (role === "SUPER_ADMIN" || role === "PLATFORM_OWNER") && !!request.cookies.get("imp_uid")?.value;
 
       // Authenticated but wrong role area → bounce to their own home.
       if (isProtected && role && !impersonating) {

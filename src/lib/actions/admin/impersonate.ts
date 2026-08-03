@@ -57,5 +57,6 @@ export async function stopImpersonation(): Promise<void> {
   }
   // Expire the cookie explicitly (path must match how it was set).
   jar.set(IMP_COOKIE, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
-  redirect("/admin/users");
+  // Platform owner returns to the tenant console; a Super Admin to their users.
+  redirect(ctx?.realUser?.role === "PLATFORM_OWNER" ? "/platform" : "/admin/users");
 }

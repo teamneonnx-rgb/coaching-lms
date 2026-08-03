@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { Building2 } from "lucide-react";
+import { Building2, ArrowRight } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { getTenants } from "@/lib/platform";
+import { enterTenant } from "@/lib/actions/platform";
 import { PageHeader } from "@/components/admin/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -27,17 +28,23 @@ export default async function PlatformPage() {
         <Card className="border-slate-200">
           <CardContent className="divide-y divide-slate-100 p-0">
             {tenants.map((t) => (
-              <div key={t.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                  <Building2 className="size-4" />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-slate-900">{t.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    /{t.slug} · {t.userCount} user{t.userCount === 1 ? "" : "s"}
-                    {t.owner ? ` · admin ${t.owner.email}` : " · no admin"}
-                  </p>
-                </div>
+              <div key={t.id} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50">
+                {/* Click the tenant to ENTER it (manage as its Super Admin, read-only). */}
+                <form action={enterTenant.bind(null, t.id)} className="min-w-0 flex-1">
+                  <button type="submit" title={`Enter ${t.name}`} className="group flex w-full items-center gap-3 text-left">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 group-hover:bg-blue-50 group-hover:text-blue-600">
+                      <Building2 className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-medium text-slate-900 group-hover:text-blue-700">{t.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        /{t.slug} · {t.userCount} user{t.userCount === 1 ? "" : "s"}
+                        {t.owner ? ` · admin ${t.owner.email}` : " · no admin"}
+                      </span>
+                    </span>
+                    <ArrowRight className="size-4 shrink-0 text-slate-300 group-hover:text-blue-500" />
+                  </button>
+                </form>
                 <span
                   className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                     t.isActive ? "bg-green-50 text-green-600" : "bg-red-50 text-red-600"

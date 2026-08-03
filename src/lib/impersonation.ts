@@ -32,11 +32,24 @@ export async function getSessionContext(): Promise<SessionContext | null> {
     role: session.user.role as Role,
   };
 
+  const targetId = (await cookies()).get(IMP_COOKIE)?.value;
+
+  // Platform owner "enters" a tenant as its Super Admin (read-only). Only the
+  // platform owner (verified via the signed JWT role) can take this path; the
+  // read-only write-block (assertNotImpersonating) still applies.
+  if (real.role === "PLATFORM_OWNER") {
+    if (!targetId) return { user: real, realUser: real, impersonating: false };
+    const tenantAdmin = await db.user.findFirst({
+      where: { id: targetId, deletedAt: null, role: "SUPER_ADMIN" },
+      select: { id: true, name: true, email: true, role: true },
+    });
+    if (!tenantAdmin) return { user: real, realUser: real, impersonating: false };
+    return { user: tenantAdmin as EffectiveUser, realUser: real, impersonating: true };
+  }
+
   if (real.role !== "SUPER_ADMIN") {
     return { user: real, realUser: real, impersonating: false };
   }
-
-  const targetId = (await cookies()).get(IMP_COOKIE)?.value;
   if (!targetId) return { user: real, realUser: real, impersonating: false };
 
   // Multi-tenant: a Super Admin may only impersonate NON-privileged users
